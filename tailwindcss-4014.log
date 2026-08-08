@@ -1,0 +1,56 @@
+2026-08-02T03:43:51.932406Z  INFO tailwindcss_oxide::scanner: Provided sources:
+2026-08-02T03:43:51.932624Z  INFO tailwindcss_oxide::scanner: Source: PublicSourceEntry { base: "/Users/viki/Documents/hood chain/hoodscan", pattern: "**/*", negated: false }
+2026-08-02T03:43:51.934311Z  INFO tailwindcss_oxide::scanner: Optimized sources:
+2026-08-02T03:43:51.934326Z  INFO tailwindcss_oxide::scanner: Source: Auto { base: "/Users/viki/Documents/hood chain/hoodscan" }
+2026-08-02T03:43:51.935311Z  INFO discover_sources: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.935333Z  INFO discover_sources:walk_synchronous: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.936835Z  INFO discover_sources:walk_synchronous: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.937078Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/sitemap.ts"
+2026-08-02T03:43:51.937078Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/txs/page.tsx"
+2026-08-02T03:43:51.937109Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/components/Footer.tsx"
+2026-08-02T03:43:51.937181Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/public/vercel.svg"
+2026-08-02T03:43:51.937117Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/about/page.tsx"
+2026-08-02T03:43:51.937123Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/blocks/page.tsx"
+2026-08-02T03:43:51.937138Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/public/window.svg"
+2026-08-02T03:43:51.937273Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/token/[address]/page.tsx"
+2026-08-02T03:43:51.937175Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/page.tsx"
+2026-08-02T03:43:51.937126Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/layout.tsx"
+2026-08-02T03:43:51.937348Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/tokens/page.tsx"
+2026-08-02T03:43:51.937232Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/lib/mock-data.ts"
+2026-08-02T03:43:51.937147Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/tx/[hash]/page.tsx"
+2026-08-02T03:43:51.937409Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/tsconfig.json"
+2026-08-02T03:43:51.937312Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/components/Header.tsx"
+2026-08-02T03:43:51.937329Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/package.json"
+2026-08-02T03:43:51.937231Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/public/next.svg"
+2026-08-02T03:43:51.937361Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/address/[address]/page.tsx"
+2026-08-02T03:43:51.937521Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/next.config.ts"
+2026-08-02T03:43:51.937304Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/robots.ts"
+2026-08-02T03:43:51.937428Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/public/globe.svg"
+2026-08-02T03:43:51.937480Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/public/file.svg"
+2026-08-02T03:43:51.937489Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/lib/utils.ts"
+2026-08-02T03:43:51.937371Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/postcss.config.mjs"
+2026-08-02T03:43:51.937542Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/README.md"
+2026-08-02T03:43:51.937583Z  INFO tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/eslint.config.mjs"
+2026-08-02T03:43:51.937739Z  INFO discover_sources: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.937748Z  INFO extract_candidates: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.937753Z  INFO extract_candidates:parse_all_blobs: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.937759Z  INFO extract_candidates:parse_all_blobs:extract: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938231Z  INFO extract_candidates:parse_all_blobs:extract: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938239Z  INFO extract_candidates:parse_all_blobs: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938244Z  INFO extract_candidates:read_all_files: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938247Z  INFO extract_candidates:read_all_files: tailwindcss_oxide::scanner: Reading 1 file(s)
+2026-08-02T03:43:51.938267Z  INFO extract_candidates:read_all_files: tailwindcss_oxide::scanner: Reading "/Users/viki/Documents/hood chain/hoodscan/app/globals.css"
+2026-08-02T03:43:51.938272Z  INFO extract_candidates:read_all_files: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938276Z  INFO extract_candidates:extract_css_variables: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938280Z  INFO extract_candidates:extract_css_variables:extract: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938352Z  INFO extract_candidates:extract_css_variables:extract: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938357Z  INFO extract_candidates:extract_css_variables: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938419Z  INFO extract_candidates: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938618Z  INFO get_files: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938623Z  INFO get_files:discover_sources: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938627Z  INFO get_files:discover_sources: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938752Z  INFO get_files: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.938809Z  INFO get_globs: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938814Z  INFO get_globs:discover_sources: tailwindcss_oxide::scanner: enter
+2026-08-02T03:43:51.938817Z  INFO get_globs:discover_sources: tailwindcss_oxide::scanner: exit
+2026-08-02T03:43:51.940427Z  INFO get_globs: tailwindcss_oxide::scanner: exit
