@@ -76,12 +76,11 @@ declare global {
 }
 
 function createPool(): Pool {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('Missing DATABASE_URL environment variable');
-  }
+  // DATABASE_URL may be unset at build time (e.g. `next build` in Docker,
+  // which prerenders static pages without runtime env vars). Don't throw
+  // here — let queries fail individually so callers can degrade gracefully.
   return new Pool({
-    connectionString,
+    connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
   });
 }
