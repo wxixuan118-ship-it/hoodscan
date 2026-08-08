@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { DbToken } from '@/lib/supabase';
+import type { DbToken } from '@/lib/db-client';
 import { fmtUsd, fmtPct, fmtPrice } from '@/lib/db';
 
 type Col = 'price' | 'change' | 'volume' | 'liquidity' | 'holders' | 'marketcap' | 'first_seen';

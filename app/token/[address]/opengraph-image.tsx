@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { supabase } from '@/lib/supabase';
+import { getTokenByAddress } from '@/lib/db';
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -20,11 +20,7 @@ function fmtPct(v: number | null): string {
 export default async function OgImage({ params }: Props) {
   const { address } = await params;
 
-  const { data: token } = await supabase
-    .from('tokens')
-    .select('name, symbol, price_usd, price_change_24h, holders_count, liquidity, volume_24h, icon_url')
-    .eq('address', address.toLowerCase())
-    .single();
+  const token = await getTokenByAddress(address);
 
   const name    = token?.name    ?? 'Unknown Token';
   const symbol  = token?.symbol  ?? '???';

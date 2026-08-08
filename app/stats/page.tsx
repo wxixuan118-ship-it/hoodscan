@@ -136,7 +136,7 @@ export default async function StatsPage() {
         </div>
       </div>
 
-      {/* Historical daily stats from Supabase */}
+      {/* Historical daily stats from Postgres */}
       {dailyStats.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginBottom: '2rem' }}>
           <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)' }}>

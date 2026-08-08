@@ -1,6 +1,7 @@
 -- ============================================================
--- HoodScan · Supabase Schema
--- Run this in the Supabase SQL editor to initialise the DB.
+-- HoodScan · Postgres Schema
+-- Run this against DATABASE_URL to initialise the DB, e.g.:
+--   psql "$DATABASE_URL" -f db/schema.sql
 -- ============================================================
 
 -- Core token table
@@ -94,14 +95,3 @@ CREATE INDEX IF NOT EXISTS idx_tokens_liquidity_idx  ON tokens(liquidity DESC NU
 CREATE INDEX IF NOT EXISTS idx_pools_token           ON token_pools(token_address);
 CREATE INDEX IF NOT EXISTS idx_pools_liquidity       ON token_pools(liquidity_usd DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_pools_dex             ON token_pools(dex_id);
-
--- ── Row Level Security (read-only anon access) ────────────────
-ALTER TABLE tokens      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE token_pools ENABLE ROW LEVEL SECURITY;
-ALTER TABLE dexes       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE daily_stats ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "anon read tokens"      ON tokens      FOR SELECT USING (true);
-CREATE POLICY "anon read token_pools" ON token_pools FOR SELECT USING (true);
-CREATE POLICY "anon read dexes"       ON dexes       FOR SELECT USING (true);
-CREATE POLICY "anon read daily_stats" ON daily_stats FOR SELECT USING (true);

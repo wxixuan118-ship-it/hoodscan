@@ -2,16 +2,15 @@
 /**
  * HoodScan · Data Sync Script
  *
- * Pulls data from Blockscout + GeckoTerminal and upserts into Supabase.
+ * Pulls data from Blockscout + GeckoTerminal and upserts into Postgres.
  * Run manually:  npx tsx scripts/sync.ts
  * Run in CI:     see .github/workflows/sync.yml
  *
  * Required env vars:
- *   SUPABASE_URL          – Supabase project URL
- *   SUPABASE_SERVICE_KEY  – Service role key (write access, never expose to browser)
+ *   DATABASE_URL – Postgres connection string (write access)
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { Pool } from 'pg';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
@@ -20,21 +19,44 @@ config({ path: resolve(process.cwd(), '.env.local') });
 
 // ── Config ────────────────────────────────────────────────────
 
-const SUPABASE_URL         = process.env.SUPABASE_URL         ?? '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY ?? '';
+const DATABASE_URL = process.env.DATABASE_URL ?? '';
 const BS_URL   = 'https://robinhoodchain.blockscout.com/api/v2';
 const GT_URL   = 'https://api.geckoterminal.com/api/v2';
 const NETWORK  = 'robinhood';
 const NEW_TOKEN_DAYS = 14; // tokens first seen within N days are marked "new"
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY');
+if (!DATABASE_URL) {
+  console.error('Missing DATABASE_URL');
   process.exit(1);
 }
 
-const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: { persistSession: false },
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
+
+// Generic upsert: INSERT ... ON CONFLICT (conflictCol) DO UPDATE SET ...
+async function upsert(table: string, rows: Record<string, unknown>[], conflictCol: string): Promise<{ error?: { message: string } }> {
+  if (!rows.length) return {};
+  const columns = Object.keys(rows[0]);
+  const updateCols = columns.filter(c => c !== conflictCol);
+  const values: unknown[] = [];
+  const tuples = rows.map((row, rowIdx) => {
+    const placeholders = columns.map((col, colIdx) => {
+      values.push(row[col]);
+      return `$${rowIdx * columns.length + colIdx + 1}`;
+    });
+    return `(${placeholders.join(', ')})`;
+  });
+  const updateSet = updateCols.map(c => `${c} = EXCLUDED.${c}`).join(', ');
+  const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${tuples.join(', ')} ON CONFLICT (${conflictCol}) DO UPDATE SET ${updateSet}`;
+  try {
+    await pool.query(sql, values);
+    return {};
+  } catch (err) {
+    return { error: { message: err instanceof Error ? err.message : String(err) } };
+  }
+}
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -285,7 +307,7 @@ async function syncDexes(pools: PoolRow[]) {
     updated_at:       new Date().toISOString(),
   }));
   if (!rows.length) return;
-  const { error } = await db.from('dexes').upsert(rows, { onConflict: 'dex_id' });
+  const { error } = await upsert('dexes', rows, 'dex_id');
   if (error) console.error('[DB] dexes upsert:', error.message);
   else console.log(`[DB] upserted ${rows.length} dexes`);
 }
@@ -370,7 +392,7 @@ async function main() {
 
   // Write base data first — this always works even if GT is down
   for (const batch of chunks(baseTokenRows, 100)) {
-    const { error } = await db.from('tokens').upsert(batch, { onConflict: 'address', ignoreDuplicates: false });
+    const { error } = await upsert('tokens', batch, 'address');
     if (error) console.error('[DB] base tokens upsert:', error.message);
   }
   console.log(`[DB] upserted ${baseTokenRows.length} base tokens (Blockscout)`);
@@ -386,7 +408,7 @@ async function main() {
     rank_liquidity: null as number | null,
   }));
   for (const batch of chunks(holderUpdates, 100)) {
-    const { error } = await db.from('tokens').upsert(batch, { onConflict: 'address' });
+    const { error } = await upsert('tokens', batch, 'address');
     if (error) console.error('[DB] holder rankings upsert:', error.message);
   }
   console.log('[DB] holder rankings written');
@@ -413,7 +435,7 @@ async function main() {
   // Overwrite with enriched data if any GT data arrived
   if (priceMap.size > 0) {
     for (const batch of chunks(tokenRows, 100)) {
-      const { error } = await db.from('tokens').upsert(batch, { onConflict: 'address', ignoreDuplicates: false });
+      const { error } = await upsert('tokens', batch, 'address');
       if (error) console.error('[DB] enriched tokens upsert:', error.message);
     }
     console.log(`[DB] enriched ${priceMap.size} tokens with GT prices`);
@@ -456,7 +478,7 @@ async function main() {
       rank_liquidity: liquidityRanks.get(t.address)   ?? null,
     }));
     for (const batch of chunks(rankUpdates, 100)) {
-      const { error } = await db.from('tokens').upsert(batch, { onConflict: 'address' });
+      const { error } = await upsert('tokens', batch, 'address');
       if (error) console.error('[DB] GT rankings upsert:', error.message);
     }
     console.log(`[DB] GT rankings written (trending:${trendingRanks.size} volume:${volumeRanks.size} gainers:${gainerRanks.size})`);
@@ -470,7 +492,7 @@ async function main() {
     const knownAddresses = new Set(tokenRows.map(t => t.address));
     const validPools = allPools.filter(p => knownAddresses.has(p.token_address));
     for (const batch of chunks(validPools, 100)) {
-      const { error } = await db.from('token_pools').upsert(batch, { onConflict: 'pool_address' });
+      const { error } = await upsert('token_pools', batch, 'pool_address');
       if (error) console.error('[DB] pools upsert:', error.message);
     }
     console.log(`[DB] upserted ${validPools.length} pools`);
@@ -482,7 +504,9 @@ async function main() {
   console.log('✅ Sync complete', new Date().toISOString());
 }
 
-main().catch(err => {
-  console.error('❌ Sync failed:', err);
-  process.exit(1);
-});
+main()
+  .catch(err => {
+    console.error('❌ Sync failed:', err);
+    process.exitCode = 1;
+  })
+  .finally(() => pool.end());

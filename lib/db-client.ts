@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { Pool } from 'pg';
 
 // ── Types matching supabase/schema.sql ────────────────────────
 
@@ -68,10 +68,23 @@ export type DbDailyStat = {
   token_transfers: number | null;
 };
 
-// ── Client (read-only, safe to use in RSC and browser) ────────
-const url  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-const akey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+// ── Client (shared connection pool, safe to import in RSC) ────
+// Reused across hot-reloads in dev so we don't exhaust the connection limit.
 
-export const supabase = createClient(url, akey, {
-  auth: { persistSession: false },
-});
+declare global {
+  var __hoodscanPool: Pool | undefined;
+}
+
+function createPool(): Pool {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('Missing DATABASE_URL environment variable');
+  }
+  return new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+  });
+}
+
+export const pool = global.__hoodscanPool ?? createPool();
+if (process.env.NODE_ENV !== 'production') global.__hoodscanPool = pool;

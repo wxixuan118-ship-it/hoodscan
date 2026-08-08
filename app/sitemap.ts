@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { supabase } from '@/lib/supabase';
+import { getSitemapTokens } from '@/lib/db';
 
 const BASE = 'https://www.hood-chain.com';
 
@@ -18,12 +18,8 @@ const STATIC: MetadataRoute.Sitemap = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Pull all token addresses from Supabase
-  const { data: tokens } = await supabase
-    .from('tokens')
-    .select('address, updated_at, holders_count')
-    .order('holders_count', { ascending: false })
-    .limit(5000);
+  // Pull all token addresses from Postgres
+  const tokens = await getSitemapTokens(5000);
 
   const now = new Date();
 
