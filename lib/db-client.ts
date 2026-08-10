@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 
-// ── Types matching supabase/schema.sql ────────────────────────
+// ── Types matching db/schema.sql ──────────────────────────────
 
 export type DbToken = {
   address: string;
