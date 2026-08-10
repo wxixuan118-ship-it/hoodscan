@@ -2,10 +2,14 @@ import { formatEther } from './robinhood-rpc';
 
 const BASE_URL = process.env.BLOCKSCOUT_API_URL || 'https://robinhoodchain.blockscout.com/api/v2';
 
-async function api<T>(path: string, revalidate = 12): Promise<T> {
+// `revalidate` opts a call into Next's persistent Data Cache, keyed by URL. Only pass
+// it for endpoints with a small, fixed key space (no per-address/tx/token path segment)
+// — otherwise every distinct address/token/tx creates a cache entry that's never
+// revisited and never cleaned up, silently filling the disk over time.
+async function api<T>(path: string, revalidate?: number): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     headers: { accept: 'application/json' },
-    next: { revalidate },
+    ...(revalidate !== undefined ? { next: { revalidate } } : { cache: 'no-store' as const }),
     signal: AbortSignal.timeout(12_000),
   });
   if (!response.ok) throw new Error(`Blockscout API returned HTTP ${response.status}`);
@@ -102,7 +106,7 @@ export function formatTokenAmount(raw: string, decimals: number, precision = 6):
 }
 
 export async function getIndexStats() {
-  const stats = await api<{ total_addresses: string; total_blocks: string; total_transactions: string; transactions_today: string; gas_prices: { average: number } | null }>('/stats');
+  const stats = await api<{ total_addresses: string; total_blocks: string; total_transactions: string; transactions_today: string; gas_prices: { average: number } | null }>('/stats', 12);
   return {
     totalAddresses: Number(stats.total_addresses), totalBlocks: Number(stats.total_blocks),
     totalTransactions: Number(stats.total_transactions), transactionsToday: Number(stats.transactions_today),
@@ -111,7 +115,7 @@ export async function getIndexStats() {
 }
 
 export async function getTransactions(): Promise<IndexedTransaction[]> {
-  const data = await api<{ items: ApiTransaction[] }>('/transactions');
+  const data = await api<{ items: ApiTransaction[] }>('/transactions', 12);
   return data.items.map(mapTransaction);
 }
 
@@ -126,12 +130,12 @@ export async function getTokens(): Promise<IndexedToken[]> {
 }
 
 export async function getToken(address: string): Promise<IndexedToken | null> {
-  try { return mapToken(await api<ApiToken>(`/tokens/${encodeURIComponent(address)}`, 30)); }
+  try { return mapToken(await api<ApiToken>(`/tokens/${encodeURIComponent(address)}`)); }
   catch { return null; }
 }
 
 export async function getTokenHolders(address: string, token: IndexedToken): Promise<TokenHolder[]> {
-  const data = await api<{ items: Array<{ address: AddressRef; value: string }> }>(`/tokens/${encodeURIComponent(address)}/holders`, 30);
+  const data = await api<{ items: Array<{ address: AddressRef; value: string }> }>(`/tokens/${encodeURIComponent(address)}/holders`);
   const supply = BigInt(token.totalSupply || '0');
   return data.items.map(item => ({
     address: item.address.hash, name: item.address.name,
@@ -149,7 +153,7 @@ export async function getTokenTransfers(address: string, token: IndexedToken): P
 }
 
 export async function getAddressTokenBalances(address: string): Promise<TokenBalance[]> {
-  const data = await api<Array<{ token: ApiToken; value: string }>>(`/addresses/${encodeURIComponent(address)}/token-balances`, 20);
+  const data = await api<Array<{ token: ApiToken; value: string }>>(`/addresses/${encodeURIComponent(address)}/token-balances`);
   return data.filter(item => item.token.type === 'ERC-20').map(item => {
     const token = mapToken(item.token);
     return { token, balance: formatTokenAmount(item.value, token.decimals) };
@@ -158,7 +162,7 @@ export async function getAddressTokenBalances(address: string): Promise<TokenBal
 
 export async function getContractInfo(address: string) {
   try {
-    const data = await api<AddressInfo>(`/addresses/${encodeURIComponent(address)}`, 60);
+    const data = await api<AddressInfo>(`/addresses/${encodeURIComponent(address)}`);
     return {
       verified: data.is_verified,
       creator: data.creator_address_hash,
@@ -175,7 +179,7 @@ export async function getContractInfo(address: string) {
 
 export async function getContractSourceInfo(address: string): Promise<ContractSourceInfo | null> {
   try {
-    const data = await api<SmartContractInfo>(`/smart-contracts/${encodeURIComponent(address)}`, 120);
+    const data = await api<SmartContractInfo>(`/smart-contracts/${encodeURIComponent(address)}`);
     return {
       abi: data.abi,
       sourceCode: data.source_code,

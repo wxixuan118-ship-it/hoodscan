@@ -16,12 +16,16 @@ export class RpcError extends Error {
   }
 }
 
-async function rpc<T>(method: string, params: unknown[]): Promise<T> {
+// `revalidate` opts a call into Next's persistent Data Cache, keyed by URL + body.
+// Only pass it for calls with a small, fixed key space (e.g. no per-block/tx/address
+// params) — otherwise every distinct block/tx/address creates a cache entry that's
+// never revisited and never cleaned up, silently filling the disk over time.
+async function rpc<T>(method: string, params: unknown[], revalidate?: number): Promise<T> {
   const response = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-    next: { revalidate: 6 },
+    ...(revalidate !== undefined ? { next: { revalidate } } : { cache: 'no-store' as const }),
     signal: AbortSignal.timeout(10_000),
   });
 
@@ -36,7 +40,7 @@ async function rpcBatch<T>(calls: Array<{ method: string; params: unknown[] }>):
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(calls.map((call, index) => ({ jsonrpc: '2.0', id: index + 1, ...call }))),
-    next: { revalidate: 6 },
+    cache: 'no-store',
     signal: AbortSignal.timeout(15_000),
   });
 
@@ -140,7 +144,7 @@ function normalizeBlock(block: RpcBlock): ChainBlock {
 }
 
 export async function getLatestBlocks(count = 50): Promise<ChainBlock[]> {
-  const latest = hexToNumber(await rpc<string>('eth_blockNumber', []));
+  const latest = hexToNumber(await rpc<string>('eth_blockNumber', [], 6));
   const numbers = Array.from({ length: Math.min(count, latest + 1) }, (_, index) => latest - index);
   const blocks = await rpcBatch<RpcBlock>(
     numbers.map(number => ({ method: 'eth_getBlockByNumber', params: [`0x${number.toString(16)}`, false] }))
@@ -150,8 +154,8 @@ export async function getLatestBlocks(count = 50): Promise<ChainBlock[]> {
 
 export async function getNetworkSnapshot() {
   const [blockNumber, gasPrice] = await Promise.all([
-    rpc<string>('eth_blockNumber', []),
-    rpc<string>('eth_gasPrice', []),
+    rpc<string>('eth_blockNumber', [], 6),
+    rpc<string>('eth_gasPrice', [], 6),
   ]);
   return { blockHeight: hexToNumber(blockNumber), gasPrice: `${formatGwei(gasPrice)} Gwei` };
 }
