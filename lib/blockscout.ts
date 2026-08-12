@@ -106,27 +106,43 @@ export function formatTokenAmount(raw: string, decimals: number, precision = 6):
 }
 
 export async function getIndexStats() {
-  const stats = await api<{ total_addresses: string; total_blocks: string; total_transactions: string; transactions_today: string; gas_prices: { average: number } | null }>('/stats', 12);
-  return {
-    totalAddresses: Number(stats.total_addresses), totalBlocks: Number(stats.total_blocks),
-    totalTransactions: Number(stats.total_transactions), transactionsToday: Number(stats.transactions_today),
-    tps: (Number(stats.transactions_today) / 86400).toFixed(1), gasPrice: stats.gas_prices ? `${stats.gas_prices.average} Gwei` : '—',
-  };
+  try {
+    const stats = await api<{ total_addresses: string; total_blocks: string; total_transactions: string; transactions_today: string; gas_prices: { average: number } | null }>('/stats', 12);
+    return {
+      totalAddresses: Number(stats.total_addresses), totalBlocks: Number(stats.total_blocks),
+      totalTransactions: Number(stats.total_transactions), transactionsToday: Number(stats.transactions_today),
+      tps: (Number(stats.transactions_today) / 86400).toFixed(1), gasPrice: stats.gas_prices ? `${stats.gas_prices.average} Gwei` : '—',
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function getTransactions(): Promise<IndexedTransaction[]> {
-  const data = await api<{ items: ApiTransaction[] }>('/transactions', 12);
-  return data.items.map(mapTransaction);
+  try {
+    const data = await api<{ items: ApiTransaction[] }>('/transactions', 12);
+    return data.items.map(mapTransaction);
+  } catch {
+    return [];
+  }
 }
 
 export async function getAddressTransactions(address: string): Promise<IndexedTransaction[]> {
-  const data = await api<{ items: ApiTransaction[] }>(`/addresses/${encodeURIComponent(address)}/transactions`);
-  return data.items.map(mapTransaction);
+  try {
+    const data = await api<{ items: ApiTransaction[] }>(`/addresses/${encodeURIComponent(address)}/transactions`);
+    return data.items.map(mapTransaction);
+  } catch {
+    return [];
+  }
 }
 
 export async function getTokens(): Promise<IndexedToken[]> {
-  const data = await api<{ items: ApiToken[] }>('/tokens?type=ERC-20', 30);
-  return data.items.map(mapToken);
+  try {
+    const data = await api<{ items: ApiToken[] }>('/tokens?type=ERC-20', 30);
+    return data.items.map(mapToken);
+  } catch {
+    return [];
+  }
 }
 
 export async function getToken(address: string): Promise<IndexedToken | null> {
@@ -135,29 +151,41 @@ export async function getToken(address: string): Promise<IndexedToken | null> {
 }
 
 export async function getTokenHolders(address: string, token: IndexedToken): Promise<TokenHolder[]> {
-  const data = await api<{ items: Array<{ address: AddressRef; value: string }> }>(`/tokens/${encodeURIComponent(address)}/holders`);
-  const supply = BigInt(token.totalSupply || '0');
-  return data.items.map(item => ({
-    address: item.address.hash, name: item.address.name,
-    balance: formatTokenAmount(item.value, token.decimals),
-    percentage: supply > BigInt(0) ? Number((BigInt(item.value) * BigInt(10000)) / supply) / 100 : 0,
-  }));
+  try {
+    const data = await api<{ items: Array<{ address: AddressRef; value: string }> }>(`/tokens/${encodeURIComponent(address)}/holders`);
+    const supply = BigInt(token.totalSupply || '0');
+    return data.items.map(item => ({
+      address: item.address.hash, name: item.address.name,
+      balance: formatTokenAmount(item.value, token.decimals),
+      percentage: supply > BigInt(0) ? Number((BigInt(item.value) * BigInt(10000)) / supply) / 100 : 0,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getTokenTransfers(address: string, token: IndexedToken): Promise<TokenTransfer[]> {
-  const data = await api<{ items: Array<{ transaction_hash: string; timestamp: string; from: AddressRef; to: AddressRef; total: { value: string; decimals: string }; method: string | null }> }>(`/tokens/${encodeURIComponent(address)}/transfers`);
-  return data.items.map(item => ({
-    hash: item.transaction_hash, timestamp: Math.floor(new Date(item.timestamp).getTime() / 1000),
-    from: item.from.hash, to: item.to.hash, value: formatTokenAmount(item.total.value, Number(item.total.decimals || token.decimals)), method: item.method,
-  }));
+  try {
+    const data = await api<{ items: Array<{ transaction_hash: string; timestamp: string; from: AddressRef; to: AddressRef; total: { value: string; decimals: string }; method: string | null }> }>(`/tokens/${encodeURIComponent(address)}/transfers`);
+    return data.items.map(item => ({
+      hash: item.transaction_hash, timestamp: Math.floor(new Date(item.timestamp).getTime() / 1000),
+      from: item.from.hash, to: item.to.hash, value: formatTokenAmount(item.total.value, Number(item.total.decimals || token.decimals)), method: item.method,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getAddressTokenBalances(address: string): Promise<TokenBalance[]> {
-  const data = await api<Array<{ token: ApiToken; value: string }>>(`/addresses/${encodeURIComponent(address)}/token-balances`);
-  return data.filter(item => item.token.type === 'ERC-20').map(item => {
-    const token = mapToken(item.token);
-    return { token, balance: formatTokenAmount(item.value, token.decimals) };
-  });
+  try {
+    const data = await api<Array<{ token: ApiToken; value: string }>>(`/addresses/${encodeURIComponent(address)}/token-balances`);
+    return data.filter(item => item.token.type === 'ERC-20').map(item => {
+      const token = mapToken(item.token);
+      return { token, balance: formatTokenAmount(item.value, token.decimals) };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getContractInfo(address: string) {

@@ -167,7 +167,11 @@ export async function getBlockByNumber(blockNumber: number): Promise<ChainBlock 
 }
 
 export async function getNativeBalance(address: string): Promise<string> {
-  return formatEther(await rpc<string>('eth_getBalance', [address, 'latest']));
+  try {
+    return formatEther(await rpc<string>('eth_getBalance', [address, 'latest']));
+  } catch {
+    return '0';
+  }
 }
 
 export async function callContract(to: string, data: string): Promise<string | null> {
@@ -179,6 +183,14 @@ export async function callContract(to: string, data: string): Promise<string | n
 }
 
 export async function getTransaction(hash: string): Promise<ChainTransaction | null> {
+  try {
+    return await fetchTransaction(hash);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTransaction(hash: string): Promise<ChainTransaction | null> {
   const tx = await rpc<RpcTransaction | null>('eth_getTransactionByHash', [hash]);
   if (!tx) return null;
 
