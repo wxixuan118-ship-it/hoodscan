@@ -3,7 +3,7 @@ import RankingTable from '@/components/RankingTable';
 import TokenNav from '@/components/TokenNav';
 import { fetchTopGainers } from '@/lib/api-direct';
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Top Gaining Robinhood Chain Tokens | Price Performance Tracker',

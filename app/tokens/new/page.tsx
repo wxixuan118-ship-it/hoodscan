@@ -3,7 +3,7 @@ import RankingTable from '@/components/RankingTable';
 import TokenNav from '@/components/TokenNav';
 import { fetchFromGtPools } from '@/lib/api-direct';
 
-export const revalidate = 600;
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'New Robinhood Chain Tokens | Recently Created Tokens Explorer',
