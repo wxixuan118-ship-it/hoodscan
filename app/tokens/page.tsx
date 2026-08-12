@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import TokenNav from '@/components/TokenNav';
 import { getTokens } from '@/lib/blockscout';
 import { getTokenPrices } from '@/lib/price-service';
 import { shortenAddress } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Robinhood Chain Tokens Explorer',
-  description: 'Explore all tokens on Robinhood Chain. View token prices, holders, transfers, contracts and verified smart contracts.',
+  title: 'Robinhood Chain Tokens Explorer | All Tokens & Contract Addresses',
+  description: 'Explore all tokens on Robinhood Chain. View token prices, holders, contract addresses, transfers and on-chain activity with HoodScan token explorer.',
+  alternates: { canonical: 'https://www.hood-chain.com/tokens' },
 };
 type Props = { searchParams: Promise<{ view?: string; search?: string }> };
 export const revalidate = 30;
@@ -63,13 +65,15 @@ export default async function TokensPage({ searchParams }: Props) {
       <section className="tokens-seo-hero">
         <div>
           <span>Robinhood Chain Token Explorer</span>
-          <h1>Robinhood Chain Tokens</h1>
-          <p>Track all ERC-20 tokens on Robinhood Chain. Live prices from GeckoTerminal, on-chain data from Blockscout.</p>
+          <h1>All Tokens on Robinhood Chain</h1>
+          <p>Browse every ERC-20 token on Robinhood Chain with live prices, holder counts, contract addresses and verified smart contract status.</p>
         </div>
         <div className="tokens-seo-checks">
           <em>Live prices</em><em>Holder counts</em><em>DEX liquidity</em><em>Risk signals</em><em>Verified contracts</em>
         </div>
       </section>
+
+      <TokenNav current="/tokens" />
 
       {/* Stats */}
       <div className="token-stats-grid">

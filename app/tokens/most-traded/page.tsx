@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
+import TokenNav from '@/components/TokenNav';
 import { fetchFromGtPools } from '@/lib/api-direct';
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Most Traded Tokens on Robinhood Chain — Highest 24h Volume',
-  description: 'ERC-20 tokens with the highest 24-hour trading volume on Robinhood Chain DEXes. Updated every 5 minutes.',
+  title: 'Most Traded Robinhood Chain Tokens | Trading Activity Explorer',
+  description: 'View the most traded tokens on Robinhood Chain ranked by transaction activity, volume and on-chain transfers.',
   alternates: { canonical: 'https://www.hood-chain.com/tokens/most-traded' },
 };
 
@@ -37,16 +38,18 @@ export default async function MostTradedPage() {
       <section className="tokens-seo-hero">
         <div>
           <span>Robinhood Chain · Volume Rankings</span>
-          <h1>Most Traded Tokens on Robinhood Chain</h1>
+          <h1>Most Traded Robinhood Chain Tokens</h1>
           <p>
-            ERC-20 tokens ranked by 24-hour DEX trading volume on Robinhood Chain.
-            High volume signals active price discovery and liquidity depth.
+            View the most actively traded tokens on Robinhood Chain ranked by transaction activity,
+            DEX volume and on-chain transfers.
           </p>
         </div>
         <div className="tokens-seo-checks">
           <em>DEX volume</em><em>5-min refresh</em><em>All pools aggregated</em>
         </div>
       </section>
+
+      <TokenNav current="/tokens/most-traded" />
 
       <div className="token-stats-grid">
         <div><span>Tokens ranked</span><strong>{tokens.length}</strong></div>

@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
+import TokenNav from '@/components/TokenNav';
 import { fetchFromGtPools } from '@/lib/api-direct';
 
 export const revalidate = 600;
 
 export const metadata: Metadata = {
-  title: 'New Tokens on Robinhood Chain',
-  description: 'Recently launched ERC-20 tokens on Robinhood Chain. Track new token deployments, early liquidity, and holder growth.',
+  title: 'New Robinhood Chain Tokens | Recently Created Tokens Explorer',
+  description: 'Discover newly created tokens on Robinhood Chain. Track new contracts, token holders and first blockchain activity.',
   alternates: { canonical: 'https://www.hood-chain.com/tokens/new' },
 };
 
@@ -36,16 +37,18 @@ export default async function NewTokensPage() {
       <section className="tokens-seo-hero">
         <div>
           <span>Robinhood Chain · New Listings</span>
-          <h1>New Tokens on Robinhood Chain</h1>
+          <h1>New Robinhood Chain Tokens</h1>
           <p>
-            ERC-20 tokens with newly created liquidity pools on Robinhood Chain.
-            Sorted by pool creation date, newest first.
+            Recently created ERC-20 tokens on Robinhood Chain. Track new contract deployments,
+            first blockchain activity, and early holder growth.
           </p>
         </div>
         <div className="tokens-seo-checks">
           <em>New pool detection</em><em>DEX pools tracked</em><em>Risk signals</em>
         </div>
       </section>
+
+      <TokenNav current="/tokens/new" />
 
       <div className="token-stats-grid">
         <div><span>New Tokens</span><strong>{tokens.length}</strong></div>

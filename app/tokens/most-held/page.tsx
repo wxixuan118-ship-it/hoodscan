@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
+import TokenNav from '@/components/TokenNav';
 import { fetchTopByHolders } from '@/lib/api-direct';
 
 export const revalidate = 600;
 
 export const metadata: Metadata = {
-  title: 'Most Held Tokens on Robinhood Chain — Largest Holder Count',
-  description: 'ERC-20 tokens with the most unique wallet holders on Robinhood Chain. A measure of community size and token distribution.',
+  title: 'Most Held Robinhood Chain Tokens | Token Holder Rankings',
+  description: 'Explore the most held tokens on Robinhood Chain ranked by unique wallet holders. View token distribution, holders, contract addresses and on-chain adoption.',
   alternates: { canonical: 'https://www.hood-chain.com/tokens/most-held' },
 };
 
@@ -37,16 +38,18 @@ export default async function MostHeldPage() {
       <section className="tokens-seo-hero">
         <div>
           <span>Robinhood Chain · Holder Rankings</span>
-          <h1>Most Held Tokens on Robinhood Chain</h1>
+          <h1>Most Held Robinhood Chain Tokens</h1>
           <p>
-            ERC-20 tokens ranked by number of unique wallet holders on Robinhood Chain.
-            More holders generally indicates wider distribution and community adoption.
+            Find the most widely held ERC-20 tokens on Robinhood Chain, ranked by unique wallet holder count.
+            Compare token distribution and adoption rates across all Robinhood Chain contracts.
           </p>
         </div>
         <div className="tokens-seo-checks">
           <em>On-chain holder data</em><em>Blockscout indexed</em><em>10-min refresh</em>
         </div>
       </section>
+
+      <TokenNav current="/tokens/most-held" />
 
       <div className="token-stats-grid">
         <div><span>Tokens ranked</span><strong>{tokens.length}</strong></div>

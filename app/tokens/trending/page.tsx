@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
+import TokenNav from '@/components/TokenNav';
 import { fetchFromGtPools } from '@/lib/api-direct';
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Trending Tokens on Robinhood Chain',
-  description: 'Discover the most actively traded tokens on Robinhood Chain right now. Ranked by 24-hour trading volume and DEX activity from GeckoTerminal.',
+  title: 'Trending Robinhood Chain Tokens | Popular Tokens Explorer',
+  description: 'Discover trending tokens on Robinhood Chain based on holder growth, trading activity and on-chain data.',
   alternates: { canonical: 'https://www.hood-chain.com/tokens/trending' },
 };
 
@@ -35,16 +36,18 @@ export default async function TrendingPage() {
       <section className="tokens-seo-hero">
         <div>
           <span>Robinhood Chain · Live Rankings</span>
-          <h1>Trending Tokens on Robinhood Chain</h1>
+          <h1>Trending Robinhood Chain Tokens</h1>
           <p>
-            Tokens ranked by real-time DEX trading activity on Robinhood Chain.
-            Updated every 5 minutes from GeckoTerminal pool data.
+            Discover the most popular tokens on Robinhood Chain by holder growth and on-chain activity.
+            Rankings updated every 5 minutes from live DEX data.
           </p>
         </div>
         <div className="tokens-seo-checks">
           <em>GeckoTerminal data</em><em>5-min refresh</em><em>DEX volume</em>
         </div>
       </section>
+
+      <TokenNav current="/tokens/trending" />
 
       <div className="token-stats-grid">
         <div><span>Trending Tokens</span><strong>{tokens.length}</strong></div>

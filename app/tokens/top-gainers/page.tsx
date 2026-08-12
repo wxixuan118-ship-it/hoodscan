@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
+import TokenNav from '@/components/TokenNav';
 import { fetchTopGainers } from '@/lib/api-direct';
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Top Gainers on Robinhood Chain — Biggest 24h Price Increases',
-  description: 'Tokens with the biggest 24-hour price gains on Robinhood Chain DEXes. Updated every 5 minutes from live pool data.',
+  title: 'Top Gaining Robinhood Chain Tokens | Price Performance Tracker',
+  description: 'Track top gaining tokens on Robinhood Chain based on price performance, trading activity and market movements.',
   alternates: { canonical: 'https://www.hood-chain.com/tokens/top-gainers' },
 };
 
@@ -35,16 +36,18 @@ export default async function TopGainersPage() {
       <section className="tokens-seo-hero">
         <div>
           <span>Robinhood Chain · 24h Leaders</span>
-          <h1>Top Gainers on Robinhood Chain</h1>
+          <h1>Top Gaining Robinhood Chain Tokens</h1>
           <p>
-            Tokens with the largest 24-hour price increase on Robinhood Chain DEXes.
-            Ranked by % change across all active liquidity pools.
+            Track top gaining tokens on Robinhood Chain based on price performance,
+            trading activity and market movements across all DEX pools.
           </p>
         </div>
         <div className="tokens-seo-checks">
           <em>Live pool prices</em><em>5-min refresh</em><em>Verified DEX data</em>
         </div>
       </section>
+
+      <TokenNav current="/tokens/top-gainers" />
 
       <div className="token-stats-grid">
         <div><span>Gainers tracked</span><strong>{tokens.length}</strong></div>

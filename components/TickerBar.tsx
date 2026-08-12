@@ -39,7 +39,7 @@ export default async function TickerBar() {
       </span>
       <span className="ticker-sep">|</span>
       <span>
-        Explorer: <strong>Robinhood Chain Mainnet</strong>
+        Explorer: <strong>Robinhood Chain Mainnet Token Explorer</strong>
       </span>
     </div>
   );

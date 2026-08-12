@@ -20,12 +20,12 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Tokens',
     items: [
-      { label: 'All Tokens', href: '/tokens' },
+      { label: 'Token Explorer', href: '/tokens' },
+      { label: 'Most Held', href: '/tokens/most-held' },
       { label: 'Trending', href: '/tokens/trending' },
       { label: 'New Tokens', href: '/tokens/new' },
-      { label: 'Top Gainers', href: '/tokens/top-gainers' },
       { label: 'Most Traded', href: '/tokens/most-traded' },
-      { label: 'Most Held', href: '/tokens/most-held' },
+      { label: 'Top Gainers', href: '/tokens/top-gainers' },
     ],
   },
   {
