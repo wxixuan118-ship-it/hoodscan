@@ -31,10 +31,11 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Analytics',
     items: [
-      { label: 'Network Stats', href: '/stats' },
-      { label: 'Gas Tracker', href: '/gas-tracker' },
-      { label: 'Top Accounts', href: '/accounts' },
-      { label: 'DEX Activity', href: '/dex' },
+      { label: 'Network Stats',   href: '/analytics/network-stats' },
+      { label: 'Gas Tracker',     href: '/analytics/gas-tracker' },
+      { label: 'Top Accounts',    href: '/analytics/top-accounts' },
+      { label: 'Token Analytics', href: '/analytics/token' },
+      { label: 'DEX Activity',    href: '/analytics/dex-activity' },
     ],
   },
   {
