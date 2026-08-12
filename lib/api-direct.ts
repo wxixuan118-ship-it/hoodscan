@@ -200,7 +200,7 @@ export async function fetchTopByHolders(pages = 2, revalidate = 600): Promise<Db
 
   for (let p = 0; p < pages; p++) {
     try {
-      const qs = nextPageParams ? `?type=ERC-20&${nextPageParams}` : '?type=ERC-20';
+      const qs: string = nextPageParams ? `?type=ERC-20&${nextPageParams}` : '?type=ERC-20';
       const res = await fetch(`${BS}/tokens${qs}`, {
         next: { revalidate },
         headers: { accept: 'application/json' },
