@@ -4,8 +4,9 @@ import { getTransactions } from '@/lib/blockscout';
 import { shortenAddress, shortenHash, timeAgo } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Transactions | Robinhood Chain',
-  description: 'Browse all transactions on Robinhood Chain. View transaction hashes, addresses, values and gas fees.',
+  title: 'Robinhood Chain Transactions Explorer | Mainnet Transaction Tracker',
+  description: 'Track Robinhood Chain transactions including transfers, contract calls, wallet activity and transaction status on mainnet.',
+  alternates: { canonical: 'https://www.hood-chain.com/txs' },
 };
 
 const TD: React.CSSProperties = { padding: '0.875rem 1.25rem', fontSize: '0.875rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
@@ -17,12 +18,21 @@ export default async function TxsPage() {
   const transactions = await getTransactions();
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1.5rem' }}>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>Transactions</h1>
-        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>
-          Showing the latest {transactions.length} indexed transactions on Robinhood Chain
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 0.75rem', letterSpacing: '-0.5px' }}>
+          Robinhood Chain Transactions Explorer
+        </h1>
+        <p style={{ color: 'var(--muted)', fontSize: '0.925rem', margin: '0 0 0.4rem', lineHeight: 1.6 }}>
+          Track all transactions on Robinhood Chain.
+        </p>
+        <p style={{ color: 'var(--muted)', fontSize: '0.925rem', margin: 0, lineHeight: 1.6 }}>
+          Search transaction hashes, monitor wallet activity and verify on-chain transfers.
         </p>
       </div>
+
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 1rem' }}>
+        Latest Robinhood Chain Transactions
+      </h2>
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>

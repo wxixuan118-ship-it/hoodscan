@@ -14,7 +14,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Blocks', href: '/blocks' },
       { label: 'Transactions', href: '/txs' },
-      { label: 'Verified Contracts', href: '/tokens' },
+      { label: 'Verified Contracts', href: '/contracts' },
     ],
   },
   {

@@ -4,8 +4,9 @@ import { getLatestBlocks } from '@/lib/robinhood-rpc';
 import { timeAgo, formatDate, formatGas } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Blocks | Robinhood Chain',
-  description: 'Browse all blocks on Robinhood Chain. View block height, transactions, gas usage and miner information.',
+  title: 'Robinhood Chain Blocks Explorer | Latest Mainnet Blocks',
+  description: 'Explore the latest Robinhood Chain blocks. View block height, timestamp, transactions, gas usage and on-chain activity on Robinhood Chain mainnet.',
+  alternates: { canonical: 'https://www.hood-chain.com/blocks' },
 };
 
 export const revalidate = 6;
@@ -17,12 +18,21 @@ export default async function BlocksPage() {
   const blocks = await getLatestBlocks(50).catch(() => []);
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1.5rem' }}>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>Blocks</h1>
-        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>
-          Showing the latest {blocks.length} blocks on Robinhood Chain mainnet
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 0.75rem', letterSpacing: '-0.5px' }}>
+          Robinhood Chain Blocks Explorer
+        </h1>
+        <p style={{ color: 'var(--muted)', fontSize: '0.925rem', margin: '0 0 0.4rem', lineHeight: 1.6 }}>
+          Hood Chain Blocks Explorer allows users to track every block produced on Robinhood Chain mainnet.
+        </p>
+        <p style={{ color: 'var(--muted)', fontSize: '0.925rem', margin: 0, lineHeight: 1.6 }}>
+          View block numbers, transaction counts, timestamps and blockchain activity in real time.
         </p>
       </div>
+
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 1rem' }}>
+        Latest Blocks on Robinhood Chain
+      </h2>
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
