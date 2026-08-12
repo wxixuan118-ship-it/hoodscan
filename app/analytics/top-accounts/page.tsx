@@ -16,14 +16,15 @@ type BsAddress = {
   name: string | null;
   is_contract: boolean;
   coin_balance: string | null;
-  transaction_count: number;
+  transactions_count: string | null;
   token_count: number;
 };
 
 async function getTopAccounts(): Promise<BsAddress[]> {
   try {
+    // default sort is coin_balance desc — no sort params needed
     const res = await fetch(
-      'https://robinhoodchain.blockscout.com/api/v2/addresses?sort=coin_balance&order=desc',
+      'https://robinhoodchain.blockscout.com/api/v2/addresses',
       { headers: { accept: 'application/json' }, next: { revalidate: 120 }, signal: AbortSignal.timeout(15_000) }
     );
     if (!res.ok) return [];
@@ -115,7 +116,7 @@ export default async function TopAccountsPage() {
                         )}
                       </td>
                       <td style={{ padding: '0.875rem 1.5rem', fontWeight: 600 }}>{balance} ETH</td>
-                      <td style={{ padding: '0.875rem 1.5rem', color: 'var(--muted)' }}>{account.transaction_count.toLocaleString()}</td>
+                      <td style={{ padding: '0.875rem 1.5rem', color: 'var(--muted)' }}>{account.transactions_count ? parseInt(account.transactions_count).toLocaleString() : '—'}</td>
                       <td style={{ padding: '0.875rem 1.5rem', color: 'var(--muted)' }}>{account.token_count}</td>
                     </tr>
                   );

@@ -10,47 +10,62 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.hood-chain.com/analytics/dex-activity' },
 };
 
+type GtPool = {
+  attributes: {
+    name?: string;
+    volume_usd?: { h24?: string };
+    reserve_in_usd?: string;
+    transactions?: { h24?: { buys?: number; sells?: number } };
+  };
+  relationships?: { dex?: { data?: { id: string } } };
+};
+
 type DexRow = {
   dex_id: string;
   dex_name: string;
   pool_count: number;
   total_volume_24h: number;
   total_liquidity: number;
+  total_swaps_24h: number;
 };
+
+async function fetchGtPage(page: number): Promise<GtPool[]> {
+  const res = await fetch(
+    `https://api.geckoterminal.com/api/v2/networks/robinhood/pools?page=${page}&sort=h24_volume_usd_desc`,
+    { headers: { accept: 'application/json' }, next: { revalidate: 600 }, signal: AbortSignal.timeout(12_000) }
+  );
+  if (!res.ok) return [];
+  const data = await res.json() as { data?: GtPool[] };
+  return data.data ?? [];
+}
 
 async function fetchDexActivity(): Promise<DexRow[]> {
   try {
-    const res = await fetch(
-      'https://api.geckoterminal.com/api/v2/networks/robinhood/pools?page=1&sort=h24_volume_usd_desc',
-      { headers: { accept: 'application/json' }, next: { revalidate: 600 }, signal: AbortSignal.timeout(12_000) }
-    );
-    if (!res.ok) return [];
-    const data = await res.json() as {
-      data: Array<{
-        attributes: {
-          volume_usd?: { h24?: string };
-          reserve_in_usd?: string;
-        };
-        relationships?: { dex?: { data?: { id: string } } };
-      }>;
-    };
+    const [page1, page2] = await Promise.all([fetchGtPage(1), fetchGtPage(2)]);
+    const pools = [...page1, ...page2];
 
     const map = new Map<string, DexRow>();
-    for (const pool of data.data ?? []) {
+    for (const pool of pools) {
       const dexId = pool.relationships?.dex?.data?.id ?? 'unknown';
-      const vol = parseFloat(pool.attributes.volume_usd?.h24 ?? '0') || 0;
-      const liq = parseFloat(pool.attributes.reserve_in_usd ?? '0') || 0;
+      const vol    = parseFloat(pool.attributes.volume_usd?.h24 ?? '0') || 0;
+      const liq    = parseFloat(pool.attributes.reserve_in_usd ?? '0') || 0;
+      const buys   = pool.attributes.transactions?.h24?.buys ?? 0;
+      const sells  = pool.attributes.transactions?.h24?.sells ?? 0;
+      const swaps  = buys + sells;
+
       const existing = map.get(dexId);
       if (existing) {
         existing.pool_count++;
         existing.total_volume_24h += vol;
-        existing.total_liquidity += liq;
+        existing.total_liquidity  += liq;
+        existing.total_swaps_24h  += swaps;
       } else {
         const dexName = dexId
+          .replace(/-robinhood$/, '')          // strip network suffix
           .split('-')
           .map(w => w.charAt(0).toUpperCase() + w.slice(1))
           .join(' ');
-        map.set(dexId, { dex_id: dexId, dex_name: dexName, pool_count: 1, total_volume_24h: vol, total_liquidity: liq });
+        map.set(dexId, { dex_id: dexId, dex_name: dexName, pool_count: 1, total_volume_24h: vol, total_liquidity: liq, total_swaps_24h: swaps });
       }
     }
     return Array.from(map.values()).sort((a, b) => b.total_volume_24h - a.total_volume_24h);
@@ -137,13 +152,12 @@ export default async function DexActivityPage() {
                   <th>Protocol</th>
                   <th>24h Volume</th>
                   <th>Total Liquidity</th>
+                  <th>24h Swaps</th>
                   <th>Pools</th>
-                  <th>Vol / Pool</th>
                 </tr>
               </thead>
               <tbody>
                 {dexes.map((dex, i) => {
-                  const volPerPool = dex.pool_count ? dex.total_volume_24h / dex.pool_count : null;
                   return (
                     <tr key={dex.dex_id}>
                       <td className="rank-cell">{i + 1}</td>
@@ -153,8 +167,8 @@ export default async function DexActivityPage() {
                       </td>
                       <td className="number-cell">{fmtUsd(dex.total_volume_24h)}</td>
                       <td className="muted-cell number-cell">{fmtUsd(dex.total_liquidity)}</td>
+                      <td className="muted-cell number-cell">{dex.total_swaps_24h.toLocaleString()}</td>
                       <td className="muted-cell number-cell">{dex.pool_count.toLocaleString()}</td>
-                      <td className="muted-cell number-cell">{fmtUsd(volPerPool)}</td>
                     </tr>
                   );
                 })}
