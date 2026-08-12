@@ -36,16 +36,13 @@ async function getVerifiedContracts(): Promise<SmartContract[]> {
   }
 }
 
-const TH: React.CSSProperties = {
-  padding: '0.75rem 1.25rem', textAlign: 'left', color: 'var(--muted)',
-  fontWeight: 500, fontSize: '0.8rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap',
-};
-const TD: React.CSSProperties = {
-  padding: '0.875rem 1.25rem', fontSize: '0.875rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap',
-};
+const COL = 'minmax(160px,2fr) minmax(140px,1.8fr) minmax(90px,1fr) minmax(100px,1fr) minmax(90px,1fr) minmax(110px,1fr)';
+const HEADS = ['Contract Address', 'Name', 'Language', 'Compiler', 'Optimization', 'Verified At'];
 
 export default async function ContractsPage() {
   const contracts = await getVerifiedContracts();
+  const doubled = [...contracts, ...contracts];
+  const dur = `${Math.max(15, contracts.length * 0.85).toFixed(0)}s`;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -95,73 +92,64 @@ export default async function ContractsPage() {
         Verified Smart Contracts on Robinhood Chain
       </h2>
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ background: 'var(--surface-2)' }}>
-              <tr>
-                {['Contract Address', 'Name', 'Language', 'Compiler', 'Optimization', 'Verified At'].map(h => (
-                  <th key={h} style={TH}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {contracts.map(contract => (
-                <tr key={contract.address.hash}>
-                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+      {contracts.length === 0 ? (
+        <div className="tokens-empty">Contract data is temporarily unavailable. Please retry shortly.</div>
+      ) : (
+        <div className="dsf-wrap">
+          <div className="dsf-head" style={{ gridTemplateColumns: COL }}>
+            {HEADS.map(h => <div key={h} className="dsf-head-cell">{h}</div>)}
+          </div>
+          <div className="dsf-window" style={{ height: 480 }}>
+            <div className="dsf-track" style={{ '--dur': dur } as React.CSSProperties}>
+              {doubled.map((contract, i) => (
+                <div key={`${contract.address.hash}-${i}`} className="dsf-row" style={{ gridTemplateColumns: COL }}>
+                  <div className="dsf-cell" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
                     <Link href={`/address/${contract.address.hash}`}>
                       {contract.address.hash.slice(0, 10)}…{contract.address.hash.slice(-6)}
                     </Link>
-                  </td>
-                  <td style={TD}>
+                  </div>
+                  <div className="dsf-cell">
                     {contract.address.name ? (
                       <Link href={`/address/${contract.address.hash}`} style={{ fontWeight: 600 }}>
                         {contract.address.name}
                       </Link>
                     ) : (
-                      <span style={{ color: 'var(--muted)' }}>—</span>
+                      <span className="muted-cell">—</span>
                     )}
-                  </td>
-                  <td style={TD}>
+                  </div>
+                  <div className="dsf-cell">
                     <span style={{
                       fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: 4, fontWeight: 600,
                       background: 'rgba(99,91,255,0.1)', color: 'var(--primary)',
                     }}>
                       {contract.language ?? 'Solidity'}
                     </span>
-                  </td>
-                  <td style={{ ...TD, color: 'var(--muted)', fontSize: '0.8rem' }}>
+                  </div>
+                  <div className="dsf-cell muted-cell" style={{ fontSize: '0.8rem' }}>
                     {contract.compiler_version
                       ? contract.compiler_version.replace('v', '').split('+')[0]
                       : '—'}
-                  </td>
-                  <td style={TD}>
+                  </div>
+                  <div className="dsf-cell">
                     {contract.optimization_enabled === null ? (
-                      <span style={{ color: 'var(--muted)' }}>—</span>
+                      <span className="muted-cell">—</span>
                     ) : contract.optimization_enabled ? (
                       <span style={{ color: 'var(--success)', fontSize: '0.8rem' }}>✓ Yes</span>
                     ) : (
-                      <span style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>No</span>
+                      <span className="muted-cell" style={{ fontSize: '0.8rem' }}>No</span>
                     )}
-                  </td>
-                  <td style={{ ...TD, color: 'var(--muted)', fontSize: '0.8rem' }}>
+                  </div>
+                  <div className="dsf-cell muted-cell" style={{ fontSize: '0.8rem' }}>
                     {contract.verified_at
                       ? new Date(contract.verified_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                       : '—'}
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-              {contracts.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: '2rem', color: 'var(--muted)', textAlign: 'center' }}>
-                    Contract data is temporarily unavailable. Please retry shortly.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
         Data sourced from Blockscout · verified contract source code available on each contract page · updated every 2 minutes

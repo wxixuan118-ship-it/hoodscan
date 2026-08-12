@@ -11,11 +11,14 @@ export const metadata: Metadata = {
 
 export const revalidate = 6;
 
-const TD: React.CSSProperties = { padding: '0.875rem 1.25rem', fontSize: '0.875rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
-const TH: React.CSSProperties = { padding: '0.75rem 1.25rem', textAlign: 'left', color: 'var(--muted)', fontWeight: 500, fontSize: '0.8rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
+const COL = 'minmax(100px,1fr) minmax(80px,1fr) minmax(80px,1fr) minmax(180px,2fr) minmax(80px,1fr) minmax(130px,1.5fr)';
+const HEADS = ['Block', 'Age', 'Transactions', 'Gas Used', 'Gas Limit', 'Miner'];
 
 export default async function BlocksPage() {
   const blocks = await getLatestBlocks(50).catch(() => []);
+  const doubled = [...blocks, ...blocks];
+  const dur = `${Math.max(15, blocks.length * 0.85).toFixed(0)}s`;
+
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -34,55 +37,50 @@ export default async function BlocksPage() {
         Latest Blocks on Robinhood Chain
       </h2>
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ background: 'var(--surface-2)' }}>
-              <tr>
-                {['Block', 'Age', 'Transactions', 'Gas Used', 'Gas Limit', 'Miner'].map(h => (
-                  <th key={h} style={TH}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {blocks.map(block => (
-                <tr key={block.number} style={{ transition: 'background 0.15s' }}>
-                  <td style={TD}>
+      {blocks.length === 0 ? (
+        <div className="tokens-empty">Live RPC data is temporarily unavailable. Please retry shortly.</div>
+      ) : (
+        <div className="dsf-wrap">
+          <div className="dsf-head" style={{ gridTemplateColumns: COL }}>
+            {HEADS.map(h => <div key={h} className="dsf-head-cell">{h}</div>)}
+          </div>
+          <div className="dsf-window" style={{ height: 480 }}>
+            <div className="dsf-track" style={{ '--dur': dur } as React.CSSProperties}>
+              {doubled.map((block, i) => (
+                <div key={`${block.number}-${i}`} className="dsf-row" style={{ gridTemplateColumns: COL }}>
+                  <div className="dsf-cell">
                     <Link href={`/block/${block.number}`} style={{ fontWeight: 600 }}>
                       {block.number.toLocaleString()}
                     </Link>
-                  </td>
-                  <td style={{ ...TD, color: 'var(--muted)' }} title={formatDate(block.timestamp)}>
+                  </div>
+                  <div className="dsf-cell muted-cell" title={formatDate(block.timestamp)}>
                     {timeAgo(block.timestamp)}
-                  </td>
-                  <td style={TD}>{block.txCount}</td>
-                  <td style={TD}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {formatGas(block.gasUsed)}
-                      <div style={{ flex: 1, maxWidth: 80, height: 4, background: 'var(--border)', borderRadius: 2, minWidth: 60 }}>
-                        <div style={{
-                          height: '100%', borderRadius: 2, background: 'var(--primary)',
-                          width: `${(Number(block.gasUsed) / Number(block.gasLimit) * 100).toFixed(1)}%`
-                        }} />
-                      </div>
-                      <span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
-                        {(Number(block.gasUsed) / Number(block.gasLimit) * 100).toFixed(1)}%
-                      </span>
+                  </div>
+                  <div className="dsf-cell">{block.txCount}</div>
+                  <div className="dsf-cell" style={{ gap: '0.5rem' }}>
+                    <span>{formatGas(block.gasUsed)}</span>
+                    <div style={{ flex: 1, maxWidth: 70, height: 4, background: 'var(--border)', borderRadius: 2 }}>
+                      <div style={{
+                        height: '100%', borderRadius: 2, background: 'var(--primary)',
+                        width: `${(Number(block.gasUsed) / Number(block.gasLimit) * 100).toFixed(1)}%`,
+                      }} />
                     </div>
-                  </td>
-                  <td style={{ ...TD, color: 'var(--muted)' }}>{formatGas(block.gasLimit)}</td>
-                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--muted)' }}>
-                    <Link href={`/address/${block.miner}`}>
-                      {block.miner.slice(0, 10)}...{block.miner.slice(-4)}
+                    <span className="muted-cell" style={{ fontSize: '0.73rem' }}>
+                      {(Number(block.gasUsed) / Number(block.gasLimit) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="dsf-cell muted-cell">{formatGas(block.gasLimit)}</div>
+                  <div className="dsf-cell" style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                    <Link href={`/address/${block.miner}`} className="muted-cell">
+                      {block.miner.slice(0, 10)}…{block.miner.slice(-4)}
                     </Link>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-              {blocks.length === 0 && <tr><td colSpan={6} style={{ padding: '2rem', color: 'var(--muted)', textAlign: 'center' }}>Live RPC data is temporarily unavailable. Please retry shortly.</td></tr>}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

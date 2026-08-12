@@ -22,7 +22,6 @@ type BsAddress = {
 
 async function getTopAccounts(): Promise<BsAddress[]> {
   try {
-    // default sort is coin_balance desc — no sort params needed
     const res = await fetch(
       'https://robinhoodchain.blockscout.com/api/v2/addresses',
       { headers: { accept: 'application/json' }, next: { revalidate: 120 }, signal: AbortSignal.timeout(15_000) }
@@ -35,8 +34,13 @@ async function getTopAccounts(): Promise<BsAddress[]> {
   }
 }
 
+const COL = '48px minmax(160px,2fr) minmax(110px,1.5fr) minmax(130px,1.5fr) minmax(100px,1fr) minmax(100px,1fr)';
+const HEADS = ['Rank', 'Address', 'Name / Type', 'Balance', 'Transactions', 'Token Holdings'];
+
 export default async function TopAccountsPage() {
   const accounts = await getTopAccounts();
+  const doubled = [...accounts, ...accounts];
+  const dur = `${Math.max(15, accounts.length * 0.85).toFixed(0)}s`;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -74,55 +78,51 @@ export default async function TopAccountsPage() {
       </div>
 
       {accounts.length === 0 ? (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+        <div className="tokens-empty">
           Could not load account data — Blockscout API may be temporarily unavailable.
         </div>
       ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-              <thead>
-                <tr>
-                  {['Rank', 'Address', 'Name / Type', 'Balance', 'Transactions', 'Token Holdings'].map(h => (
-                    <th key={h} style={{ padding: '0.875rem 1.5rem', textAlign: 'left', color: 'var(--muted)', fontWeight: 500, fontSize: '0.8rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((account, i) => {
-                  const balance = account.coin_balance
-                    ? parseFloat(formatEther(BigInt(account.coin_balance))).toFixed(4)
-                    : '0';
-                  return (
-                    <tr key={account.hash} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.875rem 1.5rem', color: 'var(--muted)', fontWeight: 600, width: 48 }}>{i + 1}</td>
-                      <td style={{ padding: '0.875rem 1.5rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                        <Link href={`/address/${account.hash}`}>
-                          {account.hash.slice(0, 10)}…{account.hash.slice(-8)}
-                        </Link>
-                      </td>
-                      <td style={{ padding: '0.875rem 1.5rem' }}>
-                        {account.name ? (
-                          <span style={{ fontWeight: 500 }}>{account.name}</span>
-                        ) : (
-                          <span style={{
-                            fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: 4,
-                            background: account.is_contract ? 'rgba(99,91,255,0.1)' : 'rgba(34,197,94,0.1)',
-                            color: account.is_contract ? 'var(--primary)' : 'var(--success)',
-                            fontWeight: 600,
-                          }}>
-                            {account.is_contract ? 'Contract' : 'Wallet'}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '0.875rem 1.5rem', fontWeight: 600 }}>{balance} ETH</td>
-                      <td style={{ padding: '0.875rem 1.5rem', color: 'var(--muted)' }}>{account.transactions_count ? parseInt(account.transactions_count).toLocaleString() : '—'}</td>
-                      <td style={{ padding: '0.875rem 1.5rem', color: 'var(--muted)' }}>{account.token_count}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="dsf-wrap">
+          <div className="dsf-head" style={{ gridTemplateColumns: COL }}>
+            {HEADS.map(h => <div key={h} className="dsf-head-cell">{h}</div>)}
+          </div>
+          <div className="dsf-window" style={{ height: 480 }}>
+            <div className="dsf-track" style={{ '--dur': dur } as React.CSSProperties}>
+              {doubled.map((account, i) => {
+                const balance = account.coin_balance
+                  ? parseFloat(formatEther(BigInt(account.coin_balance))).toFixed(4)
+                  : '0';
+                return (
+                  <div key={`${account.hash}-${i}`} className="dsf-row" style={{ gridTemplateColumns: COL }}>
+                    <div className="dsf-cell rank-cell">{(i % accounts.length) + 1}</div>
+                    <div className="dsf-cell" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                      <Link href={`/address/${account.hash}`}>
+                        {account.hash.slice(0, 10)}…{account.hash.slice(-8)}
+                      </Link>
+                    </div>
+                    <div className="dsf-cell">
+                      {account.name ? (
+                        <span style={{ fontWeight: 500 }}>{account.name}</span>
+                      ) : (
+                        <span style={{
+                          fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: 4,
+                          background: account.is_contract ? 'rgba(99,91,255,0.1)' : 'rgba(34,197,94,0.1)',
+                          color: account.is_contract ? 'var(--primary)' : 'var(--success)',
+                          fontWeight: 600,
+                        }}>
+                          {account.is_contract ? 'Contract' : 'Wallet'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="dsf-cell" style={{ fontWeight: 600 }}>{balance} ETH</div>
+                    <div className="dsf-cell muted-cell">
+                      {account.transactions_count ? parseInt(account.transactions_count).toLocaleString() : '—'}
+                    </div>
+                    <div className="dsf-cell muted-cell">{account.token_count}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

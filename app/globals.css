@@ -163,6 +163,21 @@ em.success { color: var(--success); } em.warning { color: var(--warning); } em.d
 .skeleton-pill { width: 86px; height: 31px; }
 .skeleton-pill.wide { width: 170px; }
 
+/* ── Data Scroll Feed (DSF) ────────────────────────────────────────────────── */
+/* Shared scrolling-ticker pattern for blocks, txs, tokens, contracts, accounts */
+.dsf-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.dsf-head { display: grid; background: var(--surface-2); border-bottom: 2px solid var(--border); overflow-x: auto; }
+.dsf-head-cell { padding: .65rem 1.25rem; font-size: .72rem; font-weight: 600; color: var(--muted); white-space: nowrap; text-transform: uppercase; letter-spacing: .045em; }
+.dsf-window { overflow: hidden; position: relative; }
+.dsf-window::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 30px; background: linear-gradient(var(--surface), transparent); z-index: 2; pointer-events: none; }
+.dsf-window::after  { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, var(--surface)); z-index: 2; pointer-events: none; }
+.dsf-track { animation: live-feed-scroll var(--dur, 20s) linear infinite; }
+.dsf-window:hover .dsf-track { animation-play-state: paused; }
+.dsf-row { display: grid; border-bottom: 1px solid var(--border); transition: background .1s; }
+.dsf-row:hover { background: rgba(255,255,255,.03); }
+.dsf-row:first-child { animation: live-row-flash 2.5s ease-in-out infinite; }
+.dsf-cell { padding: .72rem 1.25rem; font-size: .875rem; display: flex; align-items: center; min-width: 0; overflow: hidden; }
+
 @keyframes live-feed-scroll {
   from { transform: translateY(0); }
   to { transform: translateY(-50%); }

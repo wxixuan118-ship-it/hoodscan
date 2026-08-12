@@ -9,13 +9,16 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.hood-chain.com/txs' },
 };
 
-const TD: React.CSSProperties = { padding: '0.875rem 1.25rem', fontSize: '0.875rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
-const TH: React.CSSProperties = { padding: '0.75rem 1.25rem', textAlign: 'left', color: 'var(--muted)', fontWeight: 500, fontSize: '0.8rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
-
 export const revalidate = 12;
+
+const COL = 'minmax(120px,1.5fr) minmax(80px,1fr) minmax(70px,1fr) minmax(120px,1.5fr) minmax(120px,1.5fr) minmax(80px,1fr) minmax(80px,1fr) minmax(80px,1fr)';
+const HEADS = ['Tx Hash', 'Block', 'Age', 'From', 'To', 'Value (ETH)', 'Gas Fee', 'Status'];
 
 export default async function TxsPage() {
   const transactions = await getTransactions();
+  const doubled = [...transactions, ...transactions];
+  const dur = `${Math.max(15, transactions.length * 0.85).toFixed(0)}s`;
+
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -34,53 +37,51 @@ export default async function TxsPage() {
         Latest Robinhood Chain Transactions
       </h2>
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ background: 'var(--surface-2)' }}>
-              <tr>
-                {['Tx Hash', 'Block', 'Age', 'From', 'To', 'Value (ETH)', 'Gas Fee', 'Status'].map(h => (
-                  <th key={h} style={TH}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map(tx => (
-                <tr key={tx.hash}>
-                  <td style={{ ...TD, fontFamily: 'monospace' }}>
+      {transactions.length === 0 ? (
+        <div className="tokens-empty">Transaction data is temporarily unavailable. Please retry shortly.</div>
+      ) : (
+        <div className="dsf-wrap">
+          <div className="dsf-head" style={{ gridTemplateColumns: COL }}>
+            {HEADS.map(h => <div key={h} className="dsf-head-cell">{h}</div>)}
+          </div>
+          <div className="dsf-window" style={{ height: 480 }}>
+            <div className="dsf-track" style={{ '--dur': dur } as React.CSSProperties}>
+              {doubled.map((tx, i) => (
+                <div key={`${tx.hash}-${i}`} className="dsf-row" style={{ gridTemplateColumns: COL }}>
+                  <div className="dsf-cell" style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>
                     <Link href={`/tx/${tx.hash}`}>{shortenHash(tx.hash)}</Link>
-                  </td>
-                  <td style={TD}>
+                  </div>
+                  <div className="dsf-cell">
                     <Link href={`/blocks?highlight=${tx.blockNumber}`}>
                       {tx.blockNumber.toLocaleString()}
                     </Link>
-                  </td>
-                  <td style={{ ...TD, color: 'var(--muted)' }}>{timeAgo(tx.timestamp)}</td>
-                  <td style={{ ...TD, fontFamily: 'monospace' }}>
+                  </div>
+                  <div className="dsf-cell muted-cell">{timeAgo(tx.timestamp)}</div>
+                  <div className="dsf-cell" style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>
                     <Link href={`/address/${tx.from}`}>{shortenAddress(tx.from)}</Link>
-                  </td>
-                  <td style={{ ...TD, fontFamily: 'monospace' }}>
-                    {tx.to ? <Link href={`/address/${tx.to}`}>{shortenAddress(tx.to)}</Link> : 'Contract creation'}
-                  </td>
-                  <td style={TD}>{parseFloat(tx.value).toFixed(4)}</td>
-                  <td style={{ ...TD, color: 'var(--muted)', fontSize: '0.8rem' }}>
-                    {tx.fee} ETH
-                  </td>
-                  <td style={TD}>
+                  </div>
+                  <div className="dsf-cell" style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>
+                    {tx.to
+                      ? <Link href={`/address/${tx.to}`}>{shortenAddress(tx.to)}</Link>
+                      : <span className="muted-cell">Contract creation</span>}
+                  </div>
+                  <div className="dsf-cell">{parseFloat(tx.value).toFixed(4)}</div>
+                  <div className="dsf-cell muted-cell" style={{ fontSize: '0.8rem' }}>{tx.fee} ETH</div>
+                  <div className="dsf-cell">
                     <span style={{
                       padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500,
                       background: tx.status === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
                       color: tx.status === 'success' ? 'var(--success)' : 'var(--danger)',
                     }}>
-                      {tx.status === 'success' ? '✓ Success' : '✗ Failed'}
+                      {tx.status === 'success' ? '✓' : '✗'}
                     </span>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

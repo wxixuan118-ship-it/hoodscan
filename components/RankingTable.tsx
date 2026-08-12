@@ -22,12 +22,12 @@ const COL_LABELS: Record<Col, string> = {
   first_seen: 'Listed',
 };
 
-function PctCell({ v }: { v: number | null }) {
-  if (v === null) return <td className="muted-cell">—</td>;
+function PctDiv({ v }: { v: number | null }) {
+  if (v === null) return <div className="dsf-cell muted-cell">—</div>;
   return (
-    <td className={v >= 0 ? 'positive number-cell' : 'negative number-cell'}>
+    <div className={`dsf-cell number-cell ${v >= 0 ? 'positive' : 'negative'}`}>
       {fmtPct(v)}
-    </td>
+    </div>
   );
 }
 
@@ -40,78 +40,76 @@ export default function RankingTable({ tokens, cols = DEFAULT_COLS, emptyMessage
     );
   }
 
+  const colTemplate = `36px minmax(160px,1.8fr) ${cols.map(() => 'minmax(90px,1fr)').join(' ')} 90px`;
+  const dur = `${Math.max(15, tokens.length * 0.85).toFixed(0)}s`;
+  const doubled = [...tokens, ...tokens];
+
   return (
-    <div className="tokens-table-shell">
-      <div className="tokens-table-scroll">
-        <table className="tokens-market-table" style={{ minWidth: 700 }}>
-          <thead>
-            <tr>
-              <th style={{ width: 36 }}>#</th>
-              <th>Token</th>
-              {cols.map(c => <th key={c}>{COL_LABELS[c]}</th>)}
-              <th>Contract</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tokens.map((token, i) => (
-              <tr key={token.address}>
-                <td className="rank-cell">{i + 1}</td>
+    <div className="dsf-wrap">
+      <div className="dsf-head" style={{ gridTemplateColumns: colTemplate }}>
+        <div className="dsf-head-cell">#</div>
+        <div className="dsf-head-cell">Token</div>
+        {cols.map(c => <div key={c} className="dsf-head-cell">{COL_LABELS[c]}</div>)}
+        <div className="dsf-head-cell">Contract</div>
+      </div>
 
-                {/* Token identity */}
-                <td>
-                  <Link href={`/token/${token.address}`} className="token-identity">
-                    {token.icon_url
-                      ? <img className="token-avatar" src={token.icon_url} alt={token.symbol} width={30} height={30} />
-                      : <span className="token-avatar">{token.symbol.slice(0, 2)}</span>}
-                    <div>
-                      <strong>{token.name}</strong>
-                      <small>{token.symbol}</small>
-                    </div>
-                  </Link>
-                </td>
+      <div className="dsf-window" style={{ height: 480 }}>
+        <div className="dsf-track" style={{ '--dur': dur } as React.CSSProperties}>
+          {doubled.map((token, i) => (
+            <div key={`${token.address}-${i}`} className="dsf-row" style={{ gridTemplateColumns: colTemplate }}>
+              <div className="dsf-cell rank-cell">{(i % tokens.length) + 1}</div>
 
-                {/* Dynamic columns */}
-                {cols.map(col => {
-                  switch (col) {
-                    case 'price':
-                      return <td key={col} className="number-cell">{fmtPrice(token.price_usd)}</td>;
-                    case 'change':
-                      return <PctCell key={col} v={token.price_change_24h} />;
-                    case 'volume':
-                      return <td key={col} className="muted-cell number-cell">{fmtUsd(token.volume_24h)}</td>;
-                    case 'liquidity':
-                      return <td key={col} className="muted-cell number-cell">{fmtUsd(token.liquidity)}</td>;
-                    case 'holders':
-                      return (
-                        <td key={col} className="muted-cell number-cell">
-                          {token.holders_count.toLocaleString()}
-                        </td>
-                      );
-                    case 'marketcap':
-                      return <td key={col} className="muted-cell number-cell">{fmtUsd(token.market_cap)}</td>;
-                    case 'first_seen':
-                      return (
-                        <td key={col} className="muted-cell" style={{ fontSize: '0.78rem' }}>
-                          {new Date(token.first_seen_at).toLocaleDateString('en-US', {
-                            month: 'short', day: 'numeric', year: 'numeric',
-                          })}
-                        </td>
-                      );
-                    default:
-                      return <td key={col}>—</td>;
-                  }
-                })}
+              <div className="dsf-cell">
+                <Link href={`/token/${token.address}`} className="token-identity">
+                  {token.icon_url
+                    ? <img className="token-avatar" src={token.icon_url} alt={token.symbol} width={28} height={28} />
+                    : <span className="token-avatar">{token.symbol.slice(0, 2)}</span>}
+                  <div>
+                    <strong>{token.name}</strong>
+                    <small>{token.symbol}</small>
+                  </div>
+                </Link>
+              </div>
 
-                {/* Contract link */}
-                <td>
-                  <Link href={`/token/${token.address}`} className="address-cell" style={{ fontSize: '0.75rem' }}>
-                    {`${token.address.slice(0, 6)}…${token.address.slice(-4)}`}
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              {cols.map(col => {
+                switch (col) {
+                  case 'price':
+                    return <div key={col} className="dsf-cell number-cell">{fmtPrice(token.price_usd)}</div>;
+                  case 'change':
+                    return <PctDiv key={col} v={token.price_change_24h} />;
+                  case 'volume':
+                    return <div key={col} className="dsf-cell muted-cell number-cell">{fmtUsd(token.volume_24h)}</div>;
+                  case 'liquidity':
+                    return <div key={col} className="dsf-cell muted-cell number-cell">{fmtUsd(token.liquidity)}</div>;
+                  case 'holders':
+                    return (
+                      <div key={col} className="dsf-cell muted-cell number-cell">
+                        {token.holders_count.toLocaleString()}
+                      </div>
+                    );
+                  case 'marketcap':
+                    return <div key={col} className="dsf-cell muted-cell number-cell">{fmtUsd(token.market_cap)}</div>;
+                  case 'first_seen':
+                    return (
+                      <div key={col} className="dsf-cell muted-cell" style={{ fontSize: '0.78rem' }}>
+                        {new Date(token.first_seen_at).toLocaleDateString('en-US', {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        })}
+                      </div>
+                    );
+                  default:
+                    return <div key={col} className="dsf-cell">—</div>;
+                }
+              })}
+
+              <div className="dsf-cell">
+                <Link href={`/token/${token.address}`} className="address-cell" style={{ fontSize: '0.75rem' }}>
+                  {`${token.address.slice(0, 6)}…${token.address.slice(-4)}`}
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
