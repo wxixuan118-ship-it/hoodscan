@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
-import { getNewTokens } from '@/lib/db';
+import { fetchFromGtPools } from '@/lib/api-direct';
 
-export const revalidate = 600; // 10 minutes
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: 'New Tokens on Robinhood Chain',
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
 };
 
 export default async function NewTokensPage() {
-  const tokens = await getNewTokens(100);
+  const tokens = (await fetchFromGtPools('new_pools', 'rank_trending', 600))
+    .map(t => ({ ...t, is_new: true }));
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -37,32 +38,32 @@ export default async function NewTokensPage() {
           <span>Robinhood Chain · New Listings</span>
           <h1>New Tokens on Robinhood Chain</h1>
           <p>
-            ERC-20 tokens launched on Robinhood Chain in the past 14 days.
-            Sorted by listing date, newest first.
+            ERC-20 tokens with newly created liquidity pools on Robinhood Chain.
+            Sorted by pool creation date, newest first.
           </p>
         </div>
         <div className="tokens-seo-checks">
-          <em>Last 14 days</em><em>DEX pools tracked</em><em>Risk signals</em>
+          <em>New pool detection</em><em>DEX pools tracked</em><em>Risk signals</em>
         </div>
       </section>
 
       <div className="token-stats-grid">
-        <div><span>New Tokens (14d)</span><strong>{tokens.length}</strong></div>
-        <div><span>Data source</span><strong>Blockscout + GT</strong></div>
+        <div><span>New Tokens</span><strong>{tokens.length}</strong></div>
+        <div><span>Data source</span><strong>GeckoTerminal</strong></div>
         <div><span>Refresh</span><strong>Every 10 min</strong></div>
       </div>
 
       <div className="tokens-heading">
         <div>
           <h2>Recently listed</h2>
-          <p>Tokens detected via new GeckoTerminal pool creation in the past 14 days.</p>
+          <p>Tokens detected via new GeckoTerminal pool creation — newest pools first.</p>
         </div>
       </div>
 
       <RankingTable
         tokens={tokens}
         cols={['price', 'change', 'liquidity', 'holders', 'first_seen']}
-        emptyMessage="No new tokens found in the past 14 days — check back after the next sync."
+        emptyMessage="No new pools found — check back shortly."
       />
     </div>
   );

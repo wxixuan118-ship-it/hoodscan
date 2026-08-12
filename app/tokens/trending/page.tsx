@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
-import { getTrendingTokens } from '@/lib/db';
+import { fetchFromGtPools } from '@/lib/api-direct';
 
-export const revalidate = 300; // 5 minutes
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Trending Tokens on Robinhood Chain',
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TrendingPage() {
-  const tokens = await getTrendingTokens(100);
+  const tokens = await fetchFromGtPools('trending_pools', 'rank_trending', 300);
 
   const jsonLd = {
     '@context': 'https://schema.org',

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
-import { getTopGainers } from '@/lib/db';
+import { fetchTopGainers } from '@/lib/api-direct';
 
 export const revalidate = 300;
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TopGainersPage() {
-  const tokens = await getTopGainers(100);
+  const tokens = await fetchTopGainers(300);
 
   const jsonLd = {
     '@context': 'https://schema.org',

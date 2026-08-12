@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
-import { getMostTraded } from '@/lib/db';
+import { fetchFromGtPools } from '@/lib/api-direct';
 
 export const revalidate = 300;
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MostTradedPage() {
-  const tokens = await getMostTraded(100);
+  const tokens = await fetchFromGtPools('pools?sort=h24_volume_usd_desc', 'rank_volume', 300);
 
   const topVolume = tokens[0]?.volume_24h;
 

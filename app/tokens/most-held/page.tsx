@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
-import { getMostHeld } from '@/lib/db';
+import { fetchTopByHolders } from '@/lib/api-direct';
 
 export const revalidate = 600;
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MostHeldPage() {
-  const tokens = await getMostHeld(100);
+  const tokens = await fetchTopByHolders(2, 600);
 
   const topHolders = tokens[0]?.holders_count;
 
