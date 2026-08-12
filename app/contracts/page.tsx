@@ -16,14 +16,14 @@ type SmartContract = {
   language: string | null;
   compiler_version: string | null;
   verified_at: string | null;
-  is_partially_verified: boolean;
-  tx_count: number | null;
+  transactions_count: number | null;
   optimization_enabled: boolean | null;
+  license_type: string | null;
 };
 
-async function getVerifiedContracts(limit = 50): Promise<SmartContract[]> {
+async function getVerifiedContracts(): Promise<SmartContract[]> {
   try {
-    const res = await fetch(`${BS_URL}/smart-contracts?filter=verified&limit=${limit}`, {
+    const res = await fetch(`${BS_URL}/smart-contracts`, {
       headers: { accept: 'application/json' },
       next: { revalidate: 120 },
       signal: AbortSignal.timeout(15_000),
@@ -45,7 +45,7 @@ const TD: React.CSSProperties = {
 };
 
 export default async function ContractsPage() {
-  const contracts = await getVerifiedContracts(50);
+  const contracts = await getVerifiedContracts();
 
   const jsonLd = {
     '@context': 'https://schema.org',
