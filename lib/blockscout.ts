@@ -1,4 +1,5 @@
 import { formatEther } from './robinhood-rpc';
+import { withCircuitBreaker } from './circuit-breaker';
 
 const BASE_URL = process.env.BLOCKSCOUT_API_URL || 'https://robinhoodchain.blockscout.com/api/v2';
 
@@ -6,14 +7,21 @@ const BASE_URL = process.env.BLOCKSCOUT_API_URL || 'https://robinhoodchain.block
 // it for endpoints with a small, fixed key space (no per-address/tx/token path segment)
 // — otherwise every distinct address/token/tx creates a cache entry that's never
 // revisited and never cleaned up, silently filling the disk over time.
+//
+// Routed through the circuit breaker: when Blockscout is down, fetch() can hang for
+// the full timeout on every concurrent request before failing. Once a few calls fail
+// in a row, the breaker trips and further calls fail instantly instead of piling up
+// as simultaneous hung requests.
 async function api<T>(path: string, revalidate?: number): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    headers: { accept: 'application/json' },
-    ...(revalidate !== undefined ? { next: { revalidate } } : { cache: 'no-store' as const }),
-    signal: AbortSignal.timeout(12_000),
+  return withCircuitBreaker('blockscout', async () => {
+    const response = await fetch(`${BASE_URL}${path}`, {
+      headers: { accept: 'application/json' },
+      ...(revalidate !== undefined ? { next: { revalidate } } : { cache: 'no-store' as const }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) throw new Error(`Blockscout API returned HTTP ${response.status}`);
+    return response.json() as Promise<T>;
   });
-  if (!response.ok) throw new Error(`Blockscout API returned HTTP ${response.status}`);
-  return response.json() as Promise<T>;
 }
 
 type AddressRef = { hash: string; name: string | null; is_contract: boolean; is_verified: boolean };

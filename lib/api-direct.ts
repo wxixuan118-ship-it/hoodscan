@@ -4,6 +4,7 @@
  */
 
 import type { DbToken } from './db-client';
+import { isCircuitOpen, withCircuitBreaker } from './circuit-breaker';
 
 const GT  = 'https://api.geckoterminal.com/api/v2';
 const BS  = 'https://robinhoodchain.blockscout.com/api/v2';
@@ -27,18 +28,25 @@ type PoolRow = {
 
 type TokenMeta = { name: string; symbol: string; icon_url: string | null };
 
+// Routed through the circuit breaker: when GeckoTerminal is down, fetch() can hang for
+// the full timeout on every concurrent request before failing. Once a few calls fail
+// in a row, the breaker trips and further calls fail instantly instead of piling up
+// as simultaneous hung requests.
 async function gtFetch(
   path: string,
   revalidate: number,
 ): Promise<{ data: any[]; included?: any[] } | null> {
   const sep = path.includes('?') ? '&' : '?';
   try {
-    const res = await fetch(`${GT}/networks/${NET}/${path}${sep}include=base_token,dex`, {
-      next: { revalidate },
-      headers: { accept: 'application/json' },
-      signal: AbortSignal.timeout(12_000),
+    return await withCircuitBreaker('geckoterminal', async () => {
+      const res = await fetch(`${GT}/networks/${NET}/${path}${sep}include=base_token,dex`, {
+        next: { revalidate },
+        headers: { accept: 'application/json' },
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) throw new Error(`GeckoTerminal returned HTTP ${res.status}`);
+      return res.json() as Promise<{ data: any[]; included?: any[] }>;
     });
-    return res.ok ? (res.json() as Promise<{ data: any[]; included?: any[] }>) : null;
   } catch {
     return null;
   }
@@ -86,16 +94,22 @@ async function enrichHolders(
   revalidate: number,
 ): Promise<Map<string, number>> {
   const holderMap = new Map<string, number>();
+  // If Blockscout is already known to be down, don't fire one fetch per token — that's
+  // rows.length concurrent hung requests piling up for nothing.
+  if (isCircuitOpen('blockscout')) return holderMap;
+
   await Promise.allSettled(
     rows.map(async ({ addr }) => {
       try {
-        const res = await fetch(`${BS}/tokens/${addr}`, {
-          next: { revalidate },
-          headers: { accept: 'application/json' },
-          signal: AbortSignal.timeout(5_000),
+        const d = await withCircuitBreaker('blockscout', async () => {
+          const res = await fetch(`${BS}/tokens/${addr}`, {
+            next: { revalidate },
+            headers: { accept: 'application/json' },
+            signal: AbortSignal.timeout(5_000),
+          });
+          if (!res.ok) throw new Error(`Blockscout returned HTTP ${res.status}`);
+          return res.json();
         });
-        if (!res.ok) return;
-        const d = await res.json();
         holderMap.set(addr, Number(d.holders_count ?? 0));
         if (d.icon_url) {
           const m = meta.get(addr);
@@ -201,13 +215,15 @@ export async function fetchTopByHolders(pages = 2, revalidate = 600): Promise<Db
   for (let p = 0; p < pages; p++) {
     try {
       const qs: string = nextPageParams ? `?type=ERC-20&${nextPageParams}` : '?type=ERC-20';
-      const res = await fetch(`${BS}/tokens${qs}`, {
-        next: { revalidate },
-        headers: { accept: 'application/json' },
-        signal: AbortSignal.timeout(10_000),
+      const data = await withCircuitBreaker('blockscout', async () => {
+        const res = await fetch(`${BS}/tokens${qs}`, {
+          next: { revalidate },
+          headers: { accept: 'application/json' },
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) throw new Error(`Blockscout returned HTTP ${res.status}`);
+        return res.json();
       });
-      if (!res.ok) break;
-      const data = await res.json();
       for (const t of data.items ?? []) {
         allTokens.push({
           address:           (t.address_hash as string).toLowerCase(),

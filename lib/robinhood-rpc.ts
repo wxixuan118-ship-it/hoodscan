@@ -1,3 +1,5 @@
+import { withCircuitBreaker } from './circuit-breaker';
+
 const DEFAULT_RPC_URL = 'https://rpc.mainnet.chain.robinhood.com';
 
 const RPC_URL = process.env.ROBINHOOD_RPC_URL || DEFAULT_RPC_URL;
@@ -20,22 +22,33 @@ export class RpcError extends Error {
 // Only pass it for calls with a small, fixed key space (e.g. no per-block/tx/address
 // params) — otherwise every distinct block/tx/address creates a cache entry that's
 // never revisited and never cleaned up, silently filling the disk over time.
+//
+// Routed through the circuit breaker: when the RPC node is down, fetch() can hang for
+// the full timeout on every concurrent request before failing. Once a few calls fail
+// in a row, the breaker trips and further calls fail instantly instead of piling up
+// as simultaneous hung requests.
 async function rpc<T>(method: string, params: unknown[], revalidate?: number): Promise<T> {
-  const response = await fetch(RPC_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-    ...(revalidate !== undefined ? { next: { revalidate } } : { cache: 'no-store' as const }),
-    signal: AbortSignal.timeout(10_000),
-  });
+  return withCircuitBreaker('robinhood-rpc', async () => {
+    const response = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      ...(revalidate !== undefined ? { next: { revalidate } } : { cache: 'no-store' as const }),
+      signal: AbortSignal.timeout(10_000),
+    });
 
-  if (!response.ok) throw new RpcError(`RPC returned HTTP ${response.status}`);
-  const payload = (await response.json()) as RpcResponse<T>;
-  if (payload.error) throw new RpcError(payload.error.message);
-  return payload.result as T;
+    if (!response.ok) throw new RpcError(`RPC returned HTTP ${response.status}`);
+    const payload = (await response.json()) as RpcResponse<T>;
+    if (payload.error) throw new RpcError(payload.error.message);
+    return payload.result as T;
+  });
 }
 
 async function rpcBatch<T>(calls: Array<{ method: string; params: unknown[] }>): Promise<T[]> {
+  return withCircuitBreaker('robinhood-rpc', () => rpcBatchUncached<T>(calls));
+}
+
+async function rpcBatchUncached<T>(calls: Array<{ method: string; params: unknown[] }>): Promise<T[]> {
   const response = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
