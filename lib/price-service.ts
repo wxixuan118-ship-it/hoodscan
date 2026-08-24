@@ -1,4 +1,5 @@
 import type { IndexedToken } from './blockscout';
+import { withCircuitBreaker } from './circuit-breaker';
 
 const BASE_URL = process.env.GECKOTERMINAL_API_URL || 'https://api.geckoterminal.com/api/v2';
 const NETWORK = 'robinhood';
@@ -6,10 +7,14 @@ const NETWORK = 'robinhood';
 type JsonApiItem = { id: string; attributes: Record<string, any>; relationships?: Record<string, { data: Array<{ id: string }> | { id: string } | null }> };
 export type PricedToken = IndexedToken & { change24h: number | null; liquidity: number | null; sparkline: number[]; dex: string | null; priceSource: 'GeckoTerminal' | 'Blockscout'; poolAddress: string | null };
 
+// Shares the 'geckoterminal' breaker key with lib/api-direct.ts's gtFetch — same
+// upstream host, so failures from either path count toward the same trip/cooldown.
 async function request<T>(path: string, revalidate = 300): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, { headers: { accept: 'application/json' }, next: { revalidate }, signal: AbortSignal.timeout(6_000) });
-  if (!response.ok) throw new Error(`GeckoTerminal returned HTTP ${response.status}`);
-  return response.json() as Promise<T>;
+  return withCircuitBreaker('geckoterminal', async () => {
+    const response = await fetch(`${BASE_URL}${path}`, { headers: { accept: 'application/json' }, next: { revalidate }, signal: AbortSignal.timeout(6_000) });
+    if (!response.ok) throw new Error(`GeckoTerminal returned HTTP ${response.status}`);
+    return response.json() as Promise<T>;
+  });
 }
 
 const chunks = <T,>(items: T[], size: number) => Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, index * size + size));

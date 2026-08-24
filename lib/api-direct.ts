@@ -88,6 +88,20 @@ function parseGtResponse(data: { data: any[]; included?: any[] }) {
   return { meta, rows };
 }
 
+// Runs fn(item) for every item with at most `limit` in flight at once — firing one
+// fetch per row unbounded meant a 30-token ranking list opened 30 concurrent
+// connections at once, each buffering a response in memory until it resolved.
+async function mapWithLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const item = items[next++];
+      await fn(item);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+}
+
 async function enrichHolders(
   rows: PoolRow[],
   meta: Map<string, TokenMeta>,
@@ -98,26 +112,24 @@ async function enrichHolders(
   // rows.length concurrent hung requests piling up for nothing.
   if (isCircuitOpen('blockscout')) return holderMap;
 
-  await Promise.allSettled(
-    rows.map(async ({ addr }) => {
-      try {
-        const d = await withCircuitBreaker('blockscout', async () => {
-          const res = await fetch(`${BS}/tokens/${addr}`, {
-            next: { revalidate },
-            headers: { accept: 'application/json' },
-            signal: AbortSignal.timeout(5_000),
-          });
-          if (!res.ok) throw new Error(`Blockscout returned HTTP ${res.status}`);
-          return res.json();
+  await mapWithLimit(rows, 8, async ({ addr }) => {
+    try {
+      const d = await withCircuitBreaker('blockscout', async () => {
+        const res = await fetch(`${BS}/tokens/${addr}`, {
+          next: { revalidate },
+          headers: { accept: 'application/json' },
+          signal: AbortSignal.timeout(5_000),
         });
-        holderMap.set(addr, Number(d.holders_count ?? 0));
-        if (d.icon_url) {
-          const m = meta.get(addr);
-          if (m && !m.icon_url) m.icon_url = d.icon_url;
-        }
-      } catch { /* best-effort */ }
-    })
-  );
+        if (!res.ok) throw new Error(`Blockscout returned HTTP ${res.status}`);
+        return res.json();
+      });
+      holderMap.set(addr, Number(d.holders_count ?? 0));
+      if (d.icon_url) {
+        const m = meta.get(addr);
+        if (m && !m.icon_url) m.icon_url = d.icon_url;
+      }
+    } catch { /* best-effort */ }
+  });
   return holderMap;
 }
 
