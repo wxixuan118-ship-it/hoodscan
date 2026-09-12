@@ -158,6 +158,11 @@ async function fetchBlockscoutTokens(): Promise<ApiToken[]> {
 // ── Step 2: Enrich with GeckoTerminal price data ──────────────
 
 type PriceMap = Map<string, {
+  name: string | null;
+  symbol: string | null;
+  decimals: number | null;
+  icon_url: string | null;
+  total_supply: string | null;
   price_usd: number | null;
   price_change_24h: number | null;
   volume_24h: number | null;
@@ -182,6 +187,12 @@ async function fetchGtPrices(addresses: string[]): Promise<PriceMap> {
         const topPoolId  = Array.isArray(topPoolRel) && topPoolRel[0] ? topPoolRel[0].id : null;
         const topPool    = topPoolId ? poolAddr(topPoolId) : null;
         map.set(addr, {
+          name:             item.attributes.name ? String(item.attributes.name) : null,
+          symbol:           item.attributes.symbol ? String(item.attributes.symbol) : null,
+          decimals:         num(item.attributes.decimals),
+          icon_url:         item.attributes.image_url ? String(item.attributes.image_url) : null,
+          // GT returns a decimal string ("1000000000000000000000000000.0"); keep the integer part like Blockscout
+          total_supply:     item.attributes.total_supply ? String(item.attributes.total_supply).split('.')[0] : null,
           price_usd:        num(item.attributes.price_usd),
           price_change_24h: null,          // fetched via pools below
           volume_24h:       num(item.attributes.volume_usd?.h24),
@@ -315,7 +326,7 @@ async function syncDexes(pools: PoolRow[]) {
 async function main() {
   console.log('🔄 HoodScan sync started', new Date().toISOString());
 
-  // 1. Blockscout tokens (always works, no rate limit)
+  // 1. Blockscout tokens (may return nothing while the API sits behind a Cloudflare challenge)
   const bsTokens = await fetchBlockscoutTokens();
 
 
@@ -395,6 +406,32 @@ async function main() {
   }
   console.log(`[DB] upserted ${baseTokenRows.length} base tokens (Blockscout)`);
 
+  // Fallback: Blockscout's API is (at times) behind a Cloudflare challenge and
+  // returns nothing. Seed base rows for pool tokens from GeckoTerminal metadata
+  // so the market-driven pages (trending / most traded / gainers / liquidity)
+  // still populate. Only columns GT actually knows are written — holders_count,
+  // reputation, contract_verified etc. are left untouched so a previous
+  // Blockscout value is never clobbered with a zero.
+  const bsAddresses = new Set(baseTokenRows.map(t => t.address));
+  const gtOnlyRows = Array.from(priceMap.entries())
+    .filter(([addr, p]) => !bsAddresses.has(addr) && p.name && p.symbol)
+    .map(([addr, p]) => ({
+      address:      addr,
+      name:         p.name!,
+      symbol:       p.symbol!,
+      decimals:     p.decimals ?? 18,
+      total_supply: p.total_supply,
+      icon_url:     p.icon_url,
+      price_source: 'GeckoTerminal',
+      is_new:       newTokenAddresses.has(addr),
+      updated_at:   new Date().toISOString(),
+    }));
+  for (const batch of chunks(gtOnlyRows, 100)) {
+    const { error } = await upsert('tokens', batch, 'address');
+    if (error) console.error('[DB] GT fallback tokens upsert:', error.message);
+  }
+  if (gtOnlyRows.length) console.log(`[DB] upserted ${gtOnlyRows.length} base tokens from GeckoTerminal (not returned by Blockscout)`);
+
   // Write holder rankings immediately from Blockscout data
   const holderRanks = rankBy(baseTokenRows, t => t.holders_count, false);
   const holderUpdates = baseTokenRows.map(t => ({
@@ -414,28 +451,37 @@ async function main() {
   // ── PHASE B: Enrich with GT price data (best-effort) ──
 
   // Build full token rows with GT price data merged in
-  const tokenRows = baseTokenRows.map(t => {
+  const enrich = <T extends { address: string; price_usd?: number | null; volume_24h?: number | null; market_cap?: number | null }>(t: T) => {
     const price = priceMap.get(t.address);
     const pc24h = gainerPc.get(t.address) ?? volumePc.get(t.address) ?? trendingPc.get(t.address) ?? null;
     return {
       ...t,
-      price_usd:        price?.price_usd ?? t.price_usd,
+      price_usd:        price?.price_usd ?? t.price_usd ?? null,
       price_change_24h: pc24h,
-      volume_24h:       price?.volume_24h ?? t.volume_24h,
-      market_cap:       price?.market_cap ?? t.market_cap,
+      volume_24h:       price?.volume_24h ?? t.volume_24h ?? null,
+      market_cap:       price?.market_cap ?? t.market_cap ?? null,
       liquidity:        price?.liquidity ?? null,
       dex_name:         price?.dex_name ?? null,
       top_pool_address: price?.top_pool_address ?? null,
       price_source:     price ? 'GeckoTerminal' : 'Blockscout',
     };
-  });
+  };
+  const bsTokenRows = baseTokenRows.map(enrich);
+  const gtTokenRows = gtOnlyRows.map(enrich);
+  // Same address set, two column shapes — upsert() takes columns from rows[0], so keep the groups separate.
+  const tokenRows = [...bsTokenRows, ...gtTokenRows];
+  const upsertTokenGroups = async (a: Record<string, unknown>[], b: Record<string, unknown>[], label: string) => {
+    for (const group of [a, b]) {
+      for (const batch of chunks(group, 100)) {
+        const { error } = await upsert('tokens', batch, 'address');
+        if (error) console.error(`[DB] ${label} upsert:`, error.message);
+      }
+    }
+  };
 
   // Overwrite with enriched data if any GT data arrived
   if (priceMap.size > 0) {
-    for (const batch of chunks(tokenRows, 100)) {
-      const { error } = await upsert('tokens', batch, 'address');
-      if (error) console.error('[DB] enriched tokens upsert:', error.message);
-    }
+    await upsertTokenGroups(bsTokenRows, gtTokenRows, 'enriched tokens');
     console.log(`[DB] enriched ${priceMap.size} tokens with GT prices`);
   }
 
@@ -467,18 +513,19 @@ async function main() {
 
   // Write GT-based rankings (trending, volume, gainers, liquidity)
   if (trendingRanks.size > 0 || volumeRanks.size > 0 || gainerRanks.size > 0) {
-    const rankUpdates = tokenRows.map(t => ({
+    const withRanks = <T extends { address: string }>(t: T) => ({
       ...t,
       rank_trending:  trendingRanks.get(t.address)   ?? null,
       rank_volume:    volumeRanks.get(t.address)      ?? null,
       rank_gainers:   gainerRanks.get(t.address)      ?? null,
-      rank_holders:   holderRanks.get(t.address)      ?? null,
       rank_liquidity: liquidityRanks.get(t.address)   ?? null,
-    }));
-    for (const batch of chunks(rankUpdates, 100)) {
-      const { error } = await upsert('tokens', batch, 'address');
-      if (error) console.error('[DB] GT rankings upsert:', error.message);
-    }
+    });
+    // rank_holders comes from Blockscout holders_count only; GT-only rows leave it untouched.
+    await upsertTokenGroups(
+      bsTokenRows.map(t => ({ ...withRanks(t), rank_holders: holderRanks.get(t.address) ?? null })),
+      gtTokenRows.map(withRanks),
+      'GT rankings',
+    );
     console.log(`[DB] GT rankings written (trending:${trendingRanks.size} volume:${volumeRanks.size} gainers:${gainerRanks.size})`);
   } else {
     console.log('[DB] no GT pool data — skipping GT rankings (holder rankings already written)');
