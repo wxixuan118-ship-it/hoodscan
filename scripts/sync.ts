@@ -11,7 +11,7 @@
  */
 
 import { Pool } from 'pg';
-import { poolConfig } from '../lib/db-client';
+import { poolConfig, databaseUrl } from '../lib/db-client';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
@@ -20,7 +20,7 @@ config({ path: resolve(process.cwd(), '.env.local') });
 
 // ── Config ────────────────────────────────────────────────────
 
-const DATABASE_URL = process.env.DATABASE_URL ?? '';
+const DATABASE_URL = databaseUrl() ?? '';
 const BS_URL   = 'https://robinhoodchain.blockscout.com/api/v2';
 const GT_URL   = 'https://api.geckoterminal.com/api/v2';
 const NETWORK  = 'robinhood';

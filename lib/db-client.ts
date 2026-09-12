@@ -84,6 +84,13 @@ declare global {
 //  - `statement_timeout` is sent as a startup parameter, which PgBouncer
 //    rejects ("unsupported startup parameter"). Use pg's client-side
 //    `query_timeout` instead.
+// AnySites injects DATABASE_URL as a read-only system variable, and the value it
+// injects names a PgBouncer pool that does not exist ("no such database"). The
+// working connection string (from the platform's GET /database) can be supplied
+// via HOODSCAN_DATABASE_URL, which is a normal, editable env var and takes priority.
+export const databaseUrl = (): string | undefined =>
+  process.env.HOODSCAN_DATABASE_URL || process.env.DATABASE_URL || undefined;
+
 export function poolConfig(url: string | undefined, queryTimeoutMs: number) {
   let connectionString = url;
   let ssl: false | { rejectUnauthorized: boolean } = { rejectUnauthorized: false };
@@ -105,7 +112,7 @@ function createPool(): Pool {
   // which prerenders static pages without runtime env vars). Don't throw
   // here — let queries fail individually so callers can degrade gracefully.
   return new Pool({
-    ...poolConfig(process.env.DATABASE_URL, 5000),
+    ...poolConfig(databaseUrl(), 5000),
     max: 5,
     connectionTimeoutMillis: 3000,
     idleTimeoutMillis: 30000,

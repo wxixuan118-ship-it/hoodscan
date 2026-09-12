@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
-import { pool } from './db-client';
+import { pool, databaseUrl } from './db-client';
 import { isAddress, type Snapshot, type TokenSnapshot, type AddressSnapshot } from './seo-types';
 export const SITE_URL = 'https://www.hood-chain.com';
 
@@ -18,7 +18,7 @@ export const getAddressSnapshot = (address: string): Promise<Snapshot<AddressSna
   isAddress(address) ? read('address', address.toLowerCase()) : Promise.resolve(null);
 // Rendered in the root layout (TickerBar) on every page — a DB outage or a
 // missing seo_snapshots table must not 500 the whole site, so this one degrades to null.
-export const getNetworkSnapshot = (): Promise<Snapshot<{ gasPrice: string }> | null> => process.env.DATABASE_URL
+export const getNetworkSnapshot = (): Promise<Snapshot<{ gasPrice: string }> | null> => databaseUrl()
   ? read('network', 'chain').catch(err => { console.error('[seo] getNetworkSnapshot', err); return null; })
   : Promise.resolve(null);
 

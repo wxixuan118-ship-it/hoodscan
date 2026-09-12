@@ -5,10 +5,10 @@ import { Pool } from 'pg';
 import { getTokenHolders, getTokenTransfers, getContractInfo, getContractSourceInfo, getAddressTransactions, getAddressTokenBalances } from '../lib/blockscout';
 import { analyzeTokenRisk } from '../lib/token-risk';
 import { pricedToken, isAddress, type TokenSnapshot, type AddressSnapshot } from '../lib/seo-types';
-import { poolConfig, type DbToken } from '../lib/db-client';
+import { poolConfig, databaseUrl, type DbToken } from '../lib/db-client';
 import { SNAPSHOT_UPSERT } from '../lib/snapshot-store';
 
-const db = new Pool({ ...poolConfig(process.env.DATABASE_URL, 10000), max: 2, connectionTimeoutMillis: 5000 });
+const db = new Pool({ ...poolConfig(databaseUrl(), 10000), max: 2, connectionTimeoutMillis: 5000 });
 const TOKEN_LIMIT = 300;
 const ADDRESS_LIMIT = 500;
 const TOKEN_BATCH = 20;
@@ -35,7 +35,7 @@ function ether(raw: string) {
   return `${n / base}.${(n % base).toString().padStart(18, '0')}`;
 }
 async function main() {
-  if (!process.env.DATABASE_URL) throw new Error('Missing DATABASE_URL');
+  if (!databaseUrl()) throw new Error('Missing DATABASE_URL');
   const lock = await db.connect();
   try {
     const { rows: [result] } = await lock.query('SELECT pg_try_advisory_lock(4663001) AS locked');
