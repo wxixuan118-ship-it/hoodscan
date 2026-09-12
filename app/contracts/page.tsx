@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { getRecentVerifiedContracts } from '@/lib/sourcify';
 
 export const metadata: Metadata = {
   title: 'Robinhood Chain Verified Contracts | Smart Contract Explorer',
@@ -7,7 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.hood-chain.com/contracts' },
 };
 
-export const revalidate = 120;
+export const revalidate = 600;
 
 const BS_URL = 'https://robinhoodchain.blockscout.com/api/v2';
 
@@ -21,26 +22,36 @@ type SmartContract = {
   license_type: string | null;
 };
 
-async function getVerifiedContracts(): Promise<SmartContract[]> {
+// Blockscout when reachable (richer: tx counts, licenses); otherwise Sourcify's
+// public registry for chain 4663, which carries the same core verification fields.
+async function getVerifiedContracts(): Promise<{ contracts: SmartContract[]; source: 'Blockscout' | 'Sourcify' }> {
   try {
     const res = await fetch(`${BS_URL}/smart-contracts`, {
       headers: { accept: 'application/json' },
-      next: { revalidate: 120 },
+      next: { revalidate: 600 },
       signal: AbortSignal.timeout(15_000),
     });
-    if (!res.ok) return [];
-    const data = await res.json() as { items: SmartContract[] };
-    return data.items ?? [];
-  } catch {
-    return [];
-  }
+    if (res.ok) {
+      const data = await res.json() as { items: SmartContract[] };
+      if (data.items?.length) return { contracts: data.items, source: 'Blockscout' };
+    }
+  } catch { /* fall through */ }
+  const verified = await getRecentVerifiedContracts(30, 600);
+  return {
+    source: 'Sourcify',
+    contracts: verified.map(c => ({
+      address: { hash: c.address, name: c.name },
+      language: c.language, compiler_version: c.compilerVersion, verified_at: c.verifiedAt,
+      transactions_count: null, optimization_enabled: c.optimizationEnabled, license_type: null,
+    })),
+  };
 }
 
 const COL = 'minmax(160px,2fr) minmax(140px,1.8fr) minmax(90px,1fr) minmax(100px,1fr) minmax(90px,1fr) minmax(110px,1fr)';
 const HEADS = ['Contract Address', 'Name', 'Language', 'Compiler', 'Optimization', 'Verified At'];
 
 export default async function ContractsPage() {
-  const contracts = await getVerifiedContracts();
+  const { contracts, source } = await getVerifiedContracts();
   const doubled = [...contracts, ...contracts];
   const dur = `${Math.max(15, contracts.length * 0.85).toFixed(0)}s`;
 
@@ -78,7 +89,7 @@ export default async function ContractsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         {[
           { label: 'Verified Contracts', value: contracts.length.toString() },
-          { label: 'Data source', value: 'Blockscout' },
+          { label: 'Data source', value: source },
           { label: 'Refresh', value: 'Every 2 min' },
         ].map(({ label, value }) => (
           <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '1rem 1.25rem' }}>
@@ -152,7 +163,7 @@ export default async function ContractsPage() {
       )}
 
       <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
-        Data sourced from Blockscout · verified contract source code available on each contract page · updated every 2 minutes
+        Data sourced from {source} · verified contract source code available on each contract page · updated every 10 minutes
       </p>
     </div>
   );

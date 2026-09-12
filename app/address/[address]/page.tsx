@@ -43,7 +43,7 @@ export default async function AddressPage({ params }: Props) {
     <p>This address does not yet have a published activity snapshot.</p>
     <a href={`https://robinhoodchain.blockscout.com/address/${address}`} rel="noreferrer">View live balance and transactions on Blockscout ↗</a>
   </div>;
-  const { ethBalance, displayTxs, tokenBalances } = snapshot.payload;
+  const { ethBalance, displayTxs, tokenBalances, degraded, txCount, isContract: contractAccount } = snapshot.payload;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -81,8 +81,10 @@ export default async function AddressPage({ params }: Props) {
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', margin: '0 0 1rem' }}>Overview</h2>
           <dl style={{ margin: 0 }}>
             <Row label="ETH Balance" value={<strong>{ethBalance} ETH</strong>} />
+            {contractAccount != null && <Row label="Account type" value={contractAccount ? 'Contract' : 'Externally owned (wallet)'} />}
+            {txCount != null && <Row label="Transactions sent" value={txCount.toLocaleString()} />}
             <Row label="Transactions shown" value={displayTxs.length} />
-            <Row label="Oldest shown" value={displayTxs.length ? formatDate(displayTxs[displayTxs.length - 1].timestamp) : 'No indexed transactions'} />
+            <Row label="Oldest shown" value={displayTxs.length ? formatDate(displayTxs[displayTxs.length - 1].timestamp) : degraded ? 'History unavailable (indexer offline)' : 'No indexed transactions'} />
             <Row label="Last Seen" value={displayTxs.length ? timeAgo(displayTxs[0].timestamp) : '—'} />
           </dl>
         </div>
@@ -102,7 +104,7 @@ export default async function AddressPage({ params }: Props) {
                 <span style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>{balance} {token.symbol}</span>
               </div>
             ))}
-            {tokenBalances.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>No ERC-20 balances indexed.</span>}
+            {tokenBalances.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>{degraded ? 'No balances found among tracked tokens (live on-chain check).' : 'No ERC-20 balances indexed.'}</span>}
           </div>
         </div>
       </div>
@@ -124,6 +126,11 @@ export default async function AddressPage({ params }: Props) {
               </tr>
             </thead>
             <tbody>
+              {displayTxs.length === 0 && (
+                <tr><td colSpan={6} style={{ padding: '1.25rem', color: 'var(--muted)', textAlign: 'center' }}>
+                  {degraded ? 'Transaction history is temporarily unavailable — the indexer is offline. Balance and transaction count above are live from the node.' : 'No indexed transactions.'}
+                </td></tr>
+              )}
               {displayTxs.map(tx => (
                 <tr key={tx.hash}>
                   <td style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--border)', fontFamily: 'monospace', fontSize: '0.8rem' }}>

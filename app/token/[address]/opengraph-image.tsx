@@ -27,7 +27,7 @@ export default async function OgImage({ params }: Props) {
   const symbol  = token?.symbol  ?? '???';
   const price   = fmtPrice(token?.price ?? null);
   const change  = fmtPct(token?.change24h ?? null);
-  const holders = token?.holders?.toLocaleString() ?? '—';
+  const holders = token?.holders ? token.holders.toLocaleString() : '—';
   const isUp    = (token?.change24h ?? 0) >= 0;
   const changeColor = token?.change24h === null ? '#888' : isUp ? '#22c55e' : '#ef4444';
 
@@ -72,19 +72,19 @@ export default async function OgImage({ params }: Props) {
         {/* Stats row */}
         <div style={{ display: 'flex', gap: 24, marginBottom: 'auto' }}>
           {/* Price */}
-          <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px 28px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px 28px', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ color: '#888', fontSize: 14, fontWeight: 500, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Price</div>
             <div style={{ color: '#fff', fontSize: 34, fontWeight: 700, letterSpacing: '-0.5px' }}>{price}</div>
-            <div style={{ color: changeColor, fontSize: 18, fontWeight: 600, marginTop: 6 }}>{change} (24h)</div>
+            <div style={{ color: changeColor, fontSize: 18, fontWeight: 600, marginTop: 6 }}>{`${change} (24h)`}</div>
           </div>
           {/* Holders */}
-          <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px 28px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px 28px', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ color: '#888', fontSize: 14, fontWeight: 500, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Holders</div>
             <div style={{ color: '#fff', fontSize: 34, fontWeight: 700, letterSpacing: '-0.5px' }}>{holders}</div>
             <div style={{ color: '#555', fontSize: 16, marginTop: 6 }}>unique wallets</div>
           </div>
           {/* Volume */}
-          <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px 28px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px 28px', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ color: '#888', fontSize: 14, fontWeight: 500, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>24h Volume</div>
             <div style={{ color: '#fff', fontSize: 34, fontWeight: 700, letterSpacing: '-0.5px' }}>
               {token?.volume24h != null
@@ -99,7 +99,7 @@ export default async function OgImage({ params }: Props) {
 
         {/* Bottom bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 40, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          <span style={{ color: '#444', fontSize: 15 }}>hood-chain.com/token/{shortAddr}</span>
+          <span style={{ color: '#444', fontSize: 15 }}>{`hood-chain.com/token/${shortAddr}`}</span>
           <span style={{ color: '#444', fontSize: 15 }}>ERC-20 · Robinhood Chain</span>
         </div>
       </div>

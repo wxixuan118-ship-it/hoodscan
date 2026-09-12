@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
 import TokenNav from '@/components/TokenNav';
-import { fetchTopByHolders } from '@/lib/api-direct';
+import { getRanking } from '@/lib/token-rankings';
 
-export const revalidate = 600;
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Most Held Robinhood Chain Tokens | Token Holder Rankings',
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MostHeldPage() {
-  const tokens = await fetchTopByHolders(2, 600);
+  const tokens = await getRanking('most-held', 50, 600);
 
   const topHolders = tokens[0]?.holders_count;
 

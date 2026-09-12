@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
 import TokenNav from '@/components/TokenNav';
-import { fetchFromGtPools } from '@/lib/api-direct';
+import { getRanking } from '@/lib/token-rankings';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Most Traded Robinhood Chain Tokens | Trading Activity Explorer',
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MostTradedPage() {
-  const tokens = await fetchFromGtPools('pools?sort=h24_volume_usd_desc', 'rank_volume', 300);
+  const tokens = await getRanking('most-traded', 50, 300);
 
   const topVolume = tokens[0]?.volume_24h;
 

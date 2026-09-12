@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import TokenNav from '@/components/TokenNav';
 import { getTokens } from '@/lib/blockscout';
-import { getTokenPrices } from '@/lib/price-service';
+import { getTokenPrices, type PricedToken } from '@/lib/price-service';
+import { getAllTokens } from '@/lib/db';
+import { pricedToken } from '@/lib/seo-types';
 import { shortenAddress } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -40,7 +42,10 @@ export default async function TokensPage({ searchParams }: Props) {
   const params = await searchParams;
   const view = params.view === 'market-cap' ? 'market-cap' : 'trending';
   const search = params.search?.trim().toLowerCase() || '';
-  const tokens = await getTokenPrices(await getTokens());
+  // Primary: the synced token directory in Postgres (GeckoTerminal market data +
+  // Blockscout holder/contract data when available). Fallback: live upstreams.
+  let tokens: PricedToken[] = (await getAllTokens(view === 'market-cap' ? 'market-cap' : 'volume', search)).map(pricedToken);
+  if (!tokens.length && !search) tokens = await getTokenPrices(await getTokens());
   const rows = tokens
     .filter(token => !search || token.name.toLowerCase().includes(search) || token.symbol.toLowerCase().includes(search) || token.address.toLowerCase().includes(search))
     .sort((a, b) => view === 'market-cap' ? (b.marketCap || 0) - (a.marketCap || 0) : (b.volume24h || 0) - (a.volume24h || 0));

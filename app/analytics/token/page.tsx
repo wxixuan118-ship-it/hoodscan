@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import AnalyticsNav from '@/components/AnalyticsNav';
-import { fetchFromGtPools, fetchTopByHolders } from '@/lib/api-direct';
+import { getRanking } from '@/lib/token-rankings';
 
 export const revalidate = 300;
 
@@ -22,8 +22,8 @@ const TOKEN_LINKS = [
 
 export default async function TokenAnalyticsPage() {
   const [trendingTokens, topHeld] = await Promise.all([
-    fetchFromGtPools('trending_pools', 'rank_trending', 300).catch(() => []),
-    fetchTopByHolders(1, 300).catch(() => []),
+    getRanking('trending', 50, 300),
+    getRanking('most-held', 50, 300),
   ]);
 
   const totalHolders = topHeld.reduce((s, t) => s + t.holders_count, 0);

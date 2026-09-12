@@ -91,8 +91,12 @@ export async function getMostTraded(limit = 50): Promise<DbToken[]> {
 
 export async function getMostHeld(limit = 50): Promise<DbToken[]> {
   try {
+    // rank_holders only exists for rows synced from Blockscout; while that source is
+    // down, fall back to whatever holder counts we have, then market cap.
     const { rows } = await pool.query<DbToken>(
-      `SELECT * FROM tokens WHERE rank_holders IS NOT NULL ORDER BY rank_holders ASC LIMIT $1`,
+      `SELECT * FROM tokens
+       ORDER BY rank_holders ASC NULLS LAST, holders_count DESC, market_cap DESC NULLS LAST, volume_24h DESC NULLS LAST
+       LIMIT $1`,
       [limit]
     );
     return rows;
@@ -111,6 +115,27 @@ export async function getHighLiquidity(limit = 50): Promise<DbToken[]> {
     return rows;
   } catch (err) {
     console.error('[db] getHighLiquidity', err);
+    return [];
+  }
+}
+
+export type TokenListSort = 'volume' | 'market-cap' | 'holders';
+
+/** Full token directory for /tokens (search + sort handled in SQL). */
+export async function getAllTokens(sort: TokenListSort = 'volume', search = '', limit = 500): Promise<DbToken[]> {
+  const order = sort === 'market-cap' ? 'market_cap DESC NULLS LAST, volume_24h DESC NULLS LAST'
+    : sort === 'holders' ? 'holders_count DESC, market_cap DESC NULLS LAST'
+    : 'volume_24h DESC NULLS LAST, market_cap DESC NULLS LAST';
+  try {
+    const { rows } = await pool.query<DbToken>(
+      `SELECT * FROM tokens
+       WHERE $1 = '' OR name ILIKE '%' || $1 || '%' OR symbol ILIKE '%' || $1 || '%' OR address = lower($1)
+       ORDER BY ${order}, address ASC LIMIT $2`,
+      [search, limit]
+    );
+    return rows;
+  } catch (err) {
+    console.error('[db] getAllTokens', err);
     return [];
   }
 }
@@ -176,8 +201,11 @@ export async function getDexPools(dexId: string, limit = 50): Promise<DbPool[]> 
 
 export async function getDailyStats(limit = 30): Promise<DbDailyStat[]> {
   try {
+    // Cast NUMERIC/BIGINT to float8 so callers get numbers, not pg's string encoding.
     const { rows } = await pool.query<DbDailyStat>(
-      `SELECT * FROM daily_stats ORDER BY date DESC LIMIT $1`,
+      `SELECT to_char(date, 'YYYY-MM-DD') AS date, total_transactions::float8 AS total_transactions,
+              active_addresses, new_contracts, avg_gas_gwei::float8 AS avg_gas_gwei, token_transfers::float8 AS token_transfers
+       FROM daily_stats ORDER BY date DESC LIMIT $1`,
       [limit]
     );
     return rows;

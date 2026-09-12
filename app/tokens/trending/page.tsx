@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
 import TokenNav from '@/components/TokenNav';
-import { fetchFromGtPools } from '@/lib/api-direct';
+import { getRanking } from '@/lib/token-rankings';
 
 export const revalidate = 300;
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TrendingPage() {
-  const tokens = await fetchFromGtPools('trending_pools', 'rank_trending', 300);
+  const tokens = await getRanking('trending', 50, 300);
 
   const jsonLd = {
     '@context': 'https://schema.org',

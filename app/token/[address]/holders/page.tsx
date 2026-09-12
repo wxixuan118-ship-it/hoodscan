@@ -50,6 +50,7 @@ export default async function TokenHoldersPage({ params }: Props) {
       <section className="token-data-panel">
         <div className="token-section-title"><h2>Top Token Holders</h2><span>{token.holders.toLocaleString()} total holders</span></div>
         <div className="tokens-table-scroll"><table className="token-data-table"><thead><tr><th>Rank</th><th>Address</th><th>Balance</th><th>Percentage</th></tr></thead><tbody>
+          {holders.length === 0 && <tr><td colSpan={4} style={{ color: 'var(--muted)', textAlign: 'center', padding: '1.25rem' }}>{snapshot.payload.degraded ? 'Holder data is temporarily unavailable — the indexer is offline.' : 'No holder data recorded.'}</td></tr>}
           {holders.map((holder, index) => <tr key={holder.address}><td>{index + 1}</td><td><Link href={`/address/${holder.address}`}>{holder.name || shortenAddress(holder.address, 10)}</Link></td><td>{formatNumber(holder.balance)} {token.symbol}</td><td><div className="holder-share"><span style={{ width: `${Math.min(holder.percentage, 100)}%` }} /> <em>{holder.percentage.toFixed(2)}%</em></div></td></tr>)}
         </tbody></table></div>
       </section>

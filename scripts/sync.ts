@@ -12,6 +12,7 @@
 
 import { Pool } from 'pg';
 import { poolConfig, databaseUrl } from '../lib/db-client';
+import { getDailyActivity } from '../lib/chain-stats';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
@@ -321,6 +322,23 @@ async function syncDexes(pools: PoolRow[]) {
   else console.log(`[DB] upserted ${rows.length} dexes`);
 }
 
+// ── Step 6: Daily network activity (Blockscout stats service) ─
+
+async function syncDailyStats() {
+  const rows = (await getDailyActivity(30)).map(d => ({
+    date:               d.date,
+    total_transactions: d.total_transactions,
+    active_addresses:   d.active_addresses,
+    new_contracts:      d.new_contracts,
+    avg_gas_gwei:       d.avg_gas_gwei,
+    token_transfers:    d.token_transfers, // native-coin transfers; the only transfer series the service exposes
+  }));
+  if (!rows.length) { console.warn('[STATS] no daily activity returned'); return; }
+  const { error } = await upsert('daily_stats', rows, 'date');
+  if (error) console.error('[DB] daily_stats upsert:', error.message);
+  else console.log(`[DB] upserted ${rows.length} daily_stats rows`);
+}
+
 // ── Main ──────────────────────────────────────────────────────
 
 async function main() {
@@ -414,7 +432,8 @@ async function main() {
   // Blockscout value is never clobbered with a zero.
   const bsAddresses = new Set(baseTokenRows.map(t => t.address));
   const gtOnlyRows = Array.from(priceMap.entries())
-    .filter(([addr, p]) => !bsAddresses.has(addr) && p.name && p.symbol)
+    // Skip the zero address: GeckoTerminal reports the native coin under it, and it is not an ERC-20 contract.
+    .filter(([addr, p]) => !bsAddresses.has(addr) && p.name && p.symbol && !/^0x0{40}$/.test(addr))
     .map(([addr, p]) => ({
       address:      addr,
       name:         p.name!,
@@ -545,6 +564,9 @@ async function main() {
     // 11. Sync DEX aggregates
     await syncDexes(validPools);
   }
+
+  // 12. Daily network activity — independent of tokens; never fails the run.
+  await syncDailyStats().catch(err => console.warn('[STATS] daily stats sync failed:', err));
 
   console.log('✅ Sync complete', new Date().toISOString());
 }

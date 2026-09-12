@@ -2,7 +2,9 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 import { Pool } from 'pg';
-import { getTokenHolders, getTokenTransfers, getContractInfo, getContractSourceInfo, getAddressTransactions, getAddressTokenBalances } from '../lib/blockscout';
+import { getTokenHolders, getTokenTransfers, getContractInfo, getContractSourceInfo, getAddressTransactions, getAddressTokenBalances, formatTokenAmount, type ContractInfo, type TokenHolder, type TokenTransfer, type TokenBalance, type IndexedTransaction } from '../lib/blockscout';
+import { getVerifiedContract } from '../lib/sourcify';
+import { getErc20Balances, getTransactionCount, isContract } from '../lib/robinhood-rpc';
 import { analyzeTokenRisk } from '../lib/token-risk';
 import { pricedToken, isAddress, type TokenSnapshot, type AddressSnapshot } from '../lib/seo-types';
 import { poolConfig, databaseUrl, type DbToken } from '../lib/db-client';
@@ -40,10 +42,12 @@ async function main() {
   try {
     const { rows: [result] } = await lock.query('SELECT pg_try_advisory_lock(4663001) AS locked');
     if (!result.locked) { console.log('Snapshot publisher already running'); return; }
-    const { rows: candidates } = await db.query<DbToken>(`SELECT * FROM tokens WHERE holders_count >= 10
-      AND NOT COALESCE(is_scam,false) AND name <> '' AND symbol <> ''
-      AND (liquidity > 0 OR volume_24h > 0 OR contract_verified OR reputation = 'verified')
-      ORDER BY holders_count DESC, address LIMIT $1`, [TOKEN_LIMIT]);
+    // holders_count is only known for rows synced from Blockscout; GeckoTerminal-only rows
+    // qualify on market activity instead so the directory keeps growing while the indexer is down.
+    const { rows: candidates } = await db.query<DbToken>(`SELECT * FROM tokens
+      WHERE NOT COALESCE(is_scam,false) AND name <> '' AND symbol <> ''
+      AND (holders_count >= 10 OR COALESCE(liquidity,0) > 0 OR COALESCE(volume_24h,0) > 0 OR contract_verified OR reputation = 'verified')
+      ORDER BY holders_count DESC, volume_24h DESC NULLS LAST, address LIMIT $1`, [TOKEN_LIMIT]);
     const eligible = candidates.map(t => t.address.toLowerCase());
     // Immediately remove ineligible snapshots from indexing, keeping their last known content.
     await db.query(`UPDATE seo_snapshots SET indexable=false, content_updated_at=now()
@@ -55,13 +59,32 @@ async function main() {
       if (Date.now() > deadline) break;
       try {
         const token = pricedToken(row);
-        // Strict mode prevents upstream failures being published as empty holders / unverified contracts.
-        const holders = (await getTokenHolders(row.address, token, true)).slice(0,20);
-        const transfers = (await getTokenTransfers(row.address, token, true)).slice(0,20);
-        const contract = await getContractInfo(row.address, true);
-        const source = contract.verified ? await getContractSourceInfo(row.address, true) : null;
+        let holders: TokenHolder[] = [], transfers: TokenTransfer[] = [], contract: ContractInfo, degraded = false;
+        let source = null;
+        try {
+          // Strict mode prevents upstream failures being published as empty holders / unverified contracts.
+          holders = (await getTokenHolders(row.address, token, true)).slice(0,20);
+          transfers = (await getTokenTransfers(row.address, token, true)).slice(0,20);
+          contract = await getContractInfo(row.address, true);
+          source = contract.verified ? await getContractSourceInfo(row.address, true) : null;
+        } catch (error) {
+          // Indexer unavailable. Never replace a previously indexed record with a thinner one;
+          // otherwise publish a degraded (noindex) snapshot from Sourcify + the synced row so
+          // the page still resolves instead of 404ing.
+          const { rows: [existing] } = await db.query<{ payload: TokenSnapshot }>("SELECT payload FROM seo_snapshots WHERE kind='token' AND address=$1", [row.address.toLowerCase()]);
+          if (existing?.payload.holders?.length) throw error;
+          degraded = true;
+          const verified = await getVerifiedContract(row.address);
+          contract = {
+            verified: !!verified || !!row.contract_verified,
+            creator: verified?.deployer ?? row.creator_address ?? null,
+            creationTx: verified?.creationTx ?? row.creation_tx ?? null,
+            proxyType: row.proxy_type ?? null, implementations: [],
+            isScam: !!row.is_scam, reputation: row.reputation ?? 'unknown',
+          };
+        }
         const risk = holders.length ? await analyzeTokenRisk({ token, holders, contract, source }) : null;
-        await save('token', row.address, { token, holders, transfers, contract, risk } satisfies TokenSnapshot, !contract.isScam);
+        await save('token', row.address, { token, holders, transfers, contract, risk, degraded } satisfies TokenSnapshot, !contract.isScam && !degraded);
       } catch (error) {
         failures++;
         console.error(`Token ${row.address}: ${error instanceof Error ? error.message : 'snapshot failed'}`);
@@ -69,7 +92,7 @@ async function main() {
       await pause();
     }
     // Only successful, indexable token snapshots seed the address collection.
-    const { rows: tokens } = await db.query<{ payload: TokenSnapshot }>("SELECT payload FROM seo_snapshots WHERE kind='token' AND indexable ORDER BY address LIMIT 300");
+    const { rows: tokens } = await db.query<{ payload: TokenSnapshot }>("SELECT payload FROM seo_snapshots WHERE kind='token' AND (indexable OR (payload->>'degraded')::boolean) ORDER BY address LIMIT 300");
     const addresses = [...new Set(tokens.flatMap(({ payload }) => [payload.contract.creator, ...payload.holders.map(h => h.address)]))]
       .filter((a): a is string => !!a && isAddress(a))
       .map(a => a.toLowerCase()).filter(a => !/^0x0{40}$/.test(a) && a !== '0x000000000000000000000000000000000000dead');
@@ -83,11 +106,33 @@ async function main() {
       if (Date.now() > deadline) break;
       try {
         const ethBalance = ether(await rpc('eth_getBalance', [address, 'latest']));
-        const displayTxs = (await getAddressTransactions(address, true)).slice(0,20);
-        const tokenBalances = (await getAddressTokenBalances(address, true)).slice(0,10);
+        let displayTxs: IndexedTransaction[] = [], tokenBalances: TokenBalance[] = [], degraded = false;
+        let txCount: number | null = null, contractAccount: boolean | null = null;
+        try {
+          displayTxs = (await getAddressTransactions(address, true)).slice(0,20);
+          tokenBalances = (await getAddressTokenBalances(address, true)).slice(0,10);
+        } catch (error) {
+          const { rows: [existing] } = await db.query<{ payload: AddressSnapshot }>("SELECT payload FROM seo_snapshots WHERE kind='address' AND address=$1", [address]);
+          if (existing?.payload.displayTxs?.length) throw error;
+          // Indexer unavailable: on-chain facts only — nonce, code presence and live ERC-20
+          // balances (balanceOf) for the tokens we track.
+          degraded = true;
+          [txCount, contractAccount] = await Promise.all([getTransactionCount(address), isContract(address)]);
+          // Top 100 candidates by activity keeps this at four batched calls per address.
+          const raw = await getErc20Balances(address, candidates.slice(0, 100));
+          tokenBalances = candidates
+            .filter(t => raw.has(t.address.toLowerCase()))
+            .map(t => {
+              const token = pricedToken(t);
+              const balance = raw.get(t.address.toLowerCase())!;
+              const usd = token.price === null ? 0 : Number(balance) / 10 ** token.decimals * token.price;
+              return { entry: { token, balance: formatTokenAmount(balance.toString(), token.decimals) }, usd };
+            })
+            .sort((a, b) => b.usd - a.usd).slice(0,10).map(x => x.entry);
+        }
         // Require useful activity and an association with a qualifying token, not just dust balances.
-        const indexable = displayTxs.length >= 5 && tokenBalances.some(b => eligible.includes(b.token.address.toLowerCase()));
-        await save('address', address, { ethBalance, displayTxs, tokenBalances } satisfies AddressSnapshot, indexable);
+        const indexable = !degraded && displayTxs.length >= 5 && tokenBalances.some(b => eligible.includes(b.token.address.toLowerCase()));
+        await save('address', address, { ethBalance, displayTxs, tokenBalances, degraded, txCount, isContract: contractAccount } satisfies AddressSnapshot, indexable);
       } catch (error) {
         failures++;
         console.error(`Address ${address}: ${error instanceof Error ? error.message : 'snapshot failed'}`);

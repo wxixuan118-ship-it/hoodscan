@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import RankingTable from '@/components/RankingTable';
 import TokenNav from '@/components/TokenNav';
-import { fetchFromGtPools } from '@/lib/api-direct';
+import { getRanking } from '@/lib/token-rankings';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'New Robinhood Chain Tokens | Recently Created Tokens Explorer',
@@ -12,8 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewTokensPage() {
-  const tokens = (await fetchFromGtPools('new_pools', 'rank_trending', 600))
-    .map(t => ({ ...t, is_new: true }));
+  const tokens = await getRanking('new', 50, 600);
 
   const jsonLd = {
     '@context': 'https://schema.org',

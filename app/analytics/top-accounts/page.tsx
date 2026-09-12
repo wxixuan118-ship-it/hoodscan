@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import AnalyticsNav from '@/components/AnalyticsNav';
-import { formatEther } from '@/lib/robinhood-rpc';
+import { formatEther, getMostActiveAccounts, type ActiveAccount } from '@/lib/robinhood-rpc';
+import { getChainCounters } from '@/lib/chain-stats';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: 'Robinhood Chain Top Accounts | Largest Wallets & Holders',
@@ -37,10 +38,53 @@ async function getTopAccounts(): Promise<BsAddress[]> {
 const COL = '48px minmax(160px,2fr) minmax(110px,1.5fr) minmax(130px,1.5fr) minmax(100px,1fr) minmax(100px,1fr)';
 const HEADS = ['Rank', 'Address', 'Name / Type', 'Balance', 'Transactions', 'Token Holdings'];
 
-export default async function TopAccountsPage() {
-  const accounts = await getTopAccounts();
+const ACTIVE_COL = '48px minmax(160px,2fr) minmax(110px,1.5fr) minmax(130px,1.5fr) minmax(100px,1fr) minmax(100px,1fr)';
+const ACTIVE_HEADS = ['Rank', 'Address', 'Type', 'Balance', 'Sent', 'Received'];
+
+function ActiveAccountsTable({ accounts }: { accounts: ActiveAccount[] }) {
   const doubled = [...accounts, ...accounts];
   const dur = `${Math.max(15, accounts.length * 0.85).toFixed(0)}s`;
+  return (
+    <div className="dsf-wrap">
+      <div className="dsf-head" style={{ gridTemplateColumns: ACTIVE_COL }}>
+        {ACTIVE_HEADS.map(h => <div key={h} className="dsf-head-cell">{h}</div>)}
+      </div>
+      <div className="dsf-window" style={{ height: 480 }}>
+        <div className="dsf-track" style={{ '--dur': dur } as React.CSSProperties}>
+          {doubled.map((account, i) => (
+            <div key={`${account.address}-${i}`} className="dsf-row" style={{ gridTemplateColumns: ACTIVE_COL }}>
+              <div className="dsf-cell rank-cell">{(i % accounts.length) + 1}</div>
+              <div className="dsf-cell" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                <Link href={`/address/${account.address}`}>{account.address.slice(0, 10)}…{account.address.slice(-8)}</Link>
+              </div>
+              <div className="dsf-cell">
+                <span style={{
+                  fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: 4, fontWeight: 600,
+                  background: account.isContract ? 'rgba(99,91,255,0.1)' : 'rgba(34,197,94,0.1)',
+                  color: account.isContract ? 'var(--primary)' : 'var(--success)',
+                }}>
+                  {account.isContract ? 'Contract' : 'Wallet'}
+                </span>
+              </div>
+              <div className="dsf-cell" style={{ fontWeight: 600 }}>{account.balance} ETH</div>
+              <div className="dsf-cell muted-cell">{account.sent}</div>
+              <div className="dsf-cell muted-cell">{account.received}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default async function TopAccountsPage() {
+  // Chain-wide balance ranking needs the indexer; when it is unreachable, fall back to a
+  // live activity leaderboard computed from the latest transactions on the node.
+  const [accounts, counters] = await Promise.all([getTopAccounts(), getChainCounters()]);
+  const active = accounts.length ? [] : await getMostActiveAccounts().catch(() => []);
+  const doubled = [...accounts, ...accounts];
+  const dur = `${Math.max(15, accounts.length * 0.85).toFixed(0)}s`;
+  const fmt = (v: number | null | undefined) => v == null ? '—' : v.toLocaleString();
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -77,10 +121,37 @@ export default async function TopAccountsPage() {
         </p>
       </div>
 
-      {accounts.length === 0 ? (
-        <div className="tokens-empty">
-          Could not load account data — Blockscout API may be temporarily unavailable.
+      {counters && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          {[
+            { label: 'Accounts (sent ≥1 tx)', value: fmt(counters.totalAccounts) },
+            { label: 'Total addresses', value: fmt(counters.totalAddresses) },
+            { label: 'Contracts', value: fmt(counters.totalContracts) },
+            { label: 'Verified contracts', value: fmt(counters.totalVerifiedContracts) },
+            { label: 'Transactions (24h)', value: fmt(counters.transactions24h) },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.25rem' }}>
+              <p style={{ color: 'var(--muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.45rem' }}>{label}</p>
+              <p style={{ fontWeight: 700, fontSize: '1.15rem', margin: 0 }}>{value}</p>
+            </div>
+          ))}
         </div>
+      )}
+
+      {accounts.length === 0 ? (
+        active.length ? (
+          <>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 0.5rem' }}>Most active accounts right now</h2>
+            <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: '0 0 1rem' }}>
+              Ranked by appearances in the latest ~120 transactions on the node (live, no indexer). The all-time balance ranking returns once the Blockscout index is reachable again.
+            </p>
+            <ActiveAccountsTable accounts={active} />
+          </>
+        ) : (
+          <div className="tokens-empty">
+            Account rankings are temporarily unavailable. Please retry shortly.
+          </div>
+        )
       ) : (
         <div className="dsf-wrap">
           <div className="dsf-head" style={{ gridTemplateColumns: COL }}>
@@ -128,7 +199,7 @@ export default async function TopAccountsPage() {
       )}
 
       <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
-        Data from Blockscout · sorted by native ETH balance · updated every 2 minutes
+        {accounts.length ? 'Data from Blockscout · sorted by native ETH balance' : 'Live data from the Robinhood Chain RPC node · network totals from Blockscout stats'} · updated every 2 minutes
       </p>
     </div>
   );

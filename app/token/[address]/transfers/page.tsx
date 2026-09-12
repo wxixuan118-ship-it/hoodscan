@@ -50,6 +50,7 @@ export default async function TokenTransfersPage({ params }: Props) {
       <section className="token-data-panel">
         <div className="token-section-title"><h2>Latest Transfers</h2><span>Indexed by Blockscout</span></div>
         <div className="tokens-table-scroll"><table className="token-data-table"><thead><tr><th>Transaction</th><th>Time</th><th>From</th><th>To</th><th>Amount</th></tr></thead><tbody>
+          {transfers.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--muted)', textAlign: 'center', padding: '1.25rem' }}>{snapshot.payload.degraded ? 'Transfer history is temporarily unavailable — the indexer is offline.' : 'No transfers recorded.'}</td></tr>}
           {transfers.map((transfer, index) => <tr key={`${transfer.hash}-${index}`}><td><Link href={`/tx/${transfer.hash}`}>{shortenHash(transfer.hash)}</Link></td><td>{timeAgo(transfer.timestamp)}</td><td><Link href={`/address/${transfer.from}`}>{shortenAddress(transfer.from)}</Link></td><td><Link href={`/address/${transfer.to}`}>{shortenAddress(transfer.to)}</Link></td><td>{formatNumber(transfer.value)} {token.symbol}</td></tr>)}
         </tbody></table></div>
       </section>

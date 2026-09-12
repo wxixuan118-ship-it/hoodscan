@@ -3,12 +3,15 @@ import type { ContractInfo, TokenHolder, TokenTransfer, TokenBalance, IndexedTra
 import type { TokenRiskReport } from './token-risk';
 import type { DbToken } from './db-client';
 
+// `degraded` marks a snapshot published while the indexer (Blockscout) was unreachable:
+// holders / transfers / address history are empty and the page is served noindex.
 export type TokenSnapshot = {
   token: PricedToken; holders: TokenHolder[]; transfers: TokenTransfer[];
-  contract: ContractInfo; risk: TokenRiskReport | null;
+  contract: ContractInfo; risk: TokenRiskReport | null; degraded?: boolean;
 };
 export type AddressSnapshot = {
   ethBalance: string; displayTxs: IndexedTransaction[]; tokenBalances: TokenBalance[];
+  degraded?: boolean; txCount?: number | null; isContract?: boolean | null;
 };
 export type Snapshot<T> = {
   payload: T; indexable: boolean; content_updated_at: string; fetched_at: string;

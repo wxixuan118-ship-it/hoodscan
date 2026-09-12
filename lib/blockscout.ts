@@ -1,5 +1,6 @@
-import { formatEther } from './robinhood-rpc';
+import { formatEther, getLatestTransactions } from './robinhood-rpc';
 import { withCircuitBreaker } from './circuit-breaker';
+import { getChainCounters } from './chain-stats';
 
 const BASE_URL = process.env.BLOCKSCOUT_API_URL || 'https://robinhoodchain.blockscout.com/api/v2';
 
@@ -113,7 +114,23 @@ export function formatTokenAmount(raw: string, decimals: number, precision = 6):
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
-export async function getIndexStats() {
+export type IndexStats = {
+  totalAddresses: number; totalBlocks: number; totalTransactions: number; transactionsToday: number;
+  tps: string; gasPrice: string;
+};
+
+// Network counters come from the stats microservice (not challenge-gated); the
+// /api/v2/stats endpoint is only a fallback for gas price + whatever else it offers.
+export async function getIndexStats(): Promise<IndexStats | null> {
+  const counters = await getChainCounters();
+  if (counters && counters.totalTransactions !== null) {
+    const today = counters.transactions24h ?? 0;
+    return {
+      totalAddresses: counters.totalAddresses ?? 0, totalBlocks: counters.totalBlocks ?? 0,
+      totalTransactions: counters.totalTransactions, transactionsToday: today,
+      tps: (today / 86400).toFixed(1), gasPrice: '—',
+    };
+  }
   try {
     const stats = await api<{ total_addresses: string; total_blocks: string; total_transactions: string; transactions_today: string; gas_prices: { average: number } | null }>('/stats', 12);
     return {
@@ -126,10 +143,20 @@ export async function getIndexStats() {
   }
 }
 
-export async function getTransactions(): Promise<IndexedTransaction[]> {
+// Indexed list when available (has address labels + decoded method names); otherwise
+// the same shape straight from the node so the feed never goes blank.
+export async function getTransactions(limit = 50): Promise<IndexedTransaction[]> {
   try {
     const data = await api<{ items: ApiTransaction[] }>('/transactions', 12);
-    return data.items.map(mapTransaction);
+    if (data.items?.length) return data.items.map(mapTransaction);
+  } catch { /* fall through to RPC */ }
+  try {
+    const feed = await getLatestTransactions(limit);
+    return feed.map(tx => ({
+      hash: tx.hash, blockNumber: tx.blockNumber, timestamp: tx.timestamp, from: tx.from, to: tx.to,
+      fromName: null, toName: null, value: tx.value, status: tx.status,
+      gasUsed: tx.gasUsed, gasPrice: tx.gasPrice, fee: tx.fee, method: tx.method,
+    }));
   } catch {
     return [];
   }

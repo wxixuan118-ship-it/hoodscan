@@ -22,11 +22,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? `${token.name} (${token.symbol}) on Robinhood Chain`
       : 'Token Not Found | HoodScan',
     description: token
-      ? `${token.name} (${token.symbol}) — price, holders, transfers, liquidity and contract details on Robinhood Chain. ${token.holders.toLocaleString()} holders.`
+      ? `${token.name} (${token.symbol}) — price, holders, transfers, liquidity and contract details on Robinhood Chain.${token.holders ? ` ${token.holders.toLocaleString()} holders.` : ''}`
       : `Token data for ${address} on Robinhood Chain.`,
     openGraph: token ? {
       title: `${token.name} (${token.symbol}) | HoodScan`,
-      description: `Track ${token.symbol} on Robinhood Chain: price, ${token.holders.toLocaleString()} holders, transfers and contract info.`,
+      description: `Track ${token.symbol} on Robinhood Chain: price, ${token.holders ? `${token.holders.toLocaleString()} holders, ` : ''}transfers and contract info.`,
     } : undefined,
   };
 }
@@ -81,7 +81,7 @@ export default async function TokenPage({ params }: Props) {
   const { address } = await params;
   const snapshot = await getTokenSnapshot(address);
   if (!snapshot) notFound();
-  const { token, holders, transfers, contract, risk } = snapshot.payload;
+  const { token, holders, transfers, contract, risk, degraded } = snapshot.payload;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -122,7 +122,7 @@ export default async function TokenPage({ params }: Props) {
       </header>
 
       <SnapshotNotice fetchedAt={snapshot.fetched_at} />
-      <p>{token.name} ({token.symbol}) is a {token.type} token on Robinhood Chain with {token.holders.toLocaleString()} holders. Recorded liquidity: {money(token.liquidity)}. Contract verification: {contract.verified ? 'verified' : 'not verified'}.</p>
+      <p>{token.name} ({token.symbol}) is a {token.type} token on Robinhood Chain{token.holders ? ` with ${token.holders.toLocaleString()} holders` : ''}. Recorded liquidity: {money(token.liquidity)}. Contract verification: {contract.verified ? 'verified' : 'not verified'}.</p>
 
       {/* Price chart — GeckoTerminal embed */}
       {token.poolAddress && (
@@ -147,7 +147,7 @@ export default async function TokenPage({ params }: Props) {
       {/* Quick links */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {[
-          { label: `Holders (${token.holders.toLocaleString()})`, href: `/token/${token.address}/holders` },
+          { label: token.holders ? `Holders (${token.holders.toLocaleString()})` : 'Holders', href: `/token/${token.address}/holders` },
           { label: 'Transfers', href: `/token/${token.address}/transfers` },
           token.poolAddress ? { label: 'Chart on GeckoTerminal', href: `https://www.geckoterminal.com/robinhood/pools/${token.poolAddress}`, external: true } : null,
         ].filter(Boolean).map(link => link && (
@@ -179,7 +179,7 @@ export default async function TokenPage({ params }: Props) {
             <Row label="24h volume" value={money(token.volume24h)} />
             <Row label="Liquidity" value={money(token.liquidity)} />
             <Row label="Total supply" value={`${formatNumber(formatTokenAmount(token.totalSupply, token.decimals, 2))} ${token.symbol}`} />
-            <Row label="Holders" value={token.holders.toLocaleString()} />
+            <Row label="Holders" value={token.holders > 0 ? token.holders.toLocaleString() : '—'} />
             <Row label="Decimals" value={token.decimals} />
           </dl>
         </section>
@@ -187,7 +187,7 @@ export default async function TokenPage({ params }: Props) {
         <section className="token-panel">
           <h2>Contract</h2>
           <dl>
-            <Row label="Contract verified" value={contract.verified ? <span className="positive">Yes — source on Blockscout</span> : <span style={{ color: 'var(--warning)' }}>Not verified</span>} />
+            <Row label="Contract verified" value={contract.verified ? <span className="positive">Yes — source verified</span> : <span style={{ color: 'var(--warning)' }}>Not verified</span>} />
             {contract.proxyType && <Row label="Proxy type" value={<span style={{ color: 'var(--warning)' }}>{contract.proxyType}</span>} />}
             <Row label="Creator" value={contract.creator ? <Link href={`/address/${contract.creator}`}>{shortenAddress(contract.creator, 8)}</Link> : '—'} />
             <Row label="Creation tx" value={contract.creationTx ? <Link href={`/tx/${contract.creationTx}`}>{shortenHash(contract.creationTx)}</Link> : '—'} />
@@ -207,7 +207,7 @@ export default async function TokenPage({ params }: Props) {
         <div className="token-section-title">
           <h2>Top holders</h2>
           <span>
-            {token.holders.toLocaleString()} total ·{' '}
+            {token.holders ? `${token.holders.toLocaleString()} total` : 'count unavailable'} ·{' '}
             <Link href={`/token/${token.address}/holders`} style={{ fontSize: '0.75rem' }}>View all</Link>
           </span>
         </div>
@@ -215,6 +215,11 @@ export default async function TokenPage({ params }: Props) {
           <table className="token-data-table">
             <thead><tr><th>#</th><th>Wallet</th><th>Balance</th><th>Share</th></tr></thead>
             <tbody>
+              {holders.length === 0 && (
+                <tr><td colSpan={4} style={{ color: 'var(--muted)', textAlign: 'center', padding: '1.25rem' }}>
+                  {degraded ? 'Holder data is temporarily unavailable — the indexer is offline. Balances, price and contract details above are live.' : 'No holder data recorded.'}
+                </td></tr>
+              )}
               {holders.map((holder, index) => (
                 <tr key={holder.address}>
                   <td>{index + 1}</td>
@@ -245,6 +250,11 @@ export default async function TokenPage({ params }: Props) {
           <table className="token-data-table">
             <thead><tr><th>Transaction</th><th>Age</th><th>Method</th><th>From</th><th>To</th><th>Amount</th></tr></thead>
             <tbody>
+              {transfers.length === 0 && (
+                <tr><td colSpan={6} style={{ color: 'var(--muted)', textAlign: 'center', padding: '1.25rem' }}>
+                  {degraded ? 'Transfer history is temporarily unavailable — the indexer is offline.' : 'No transfers recorded.'}
+                </td></tr>
+              )}
               {transfers.map((transfer, index) => (
                 <tr key={`${transfer.hash}-${index}`}>
                   <td><Link href={`/tx/${transfer.hash}`}>{shortenHash(transfer.hash)}</Link></td>

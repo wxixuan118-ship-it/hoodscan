@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { getLatestBlocks, getNetworkSnapshot } from '@/lib/robinhood-rpc';
 import { getIndexStats, getTokens, getTransactions } from '@/lib/blockscout';
 import { getTokenPrices } from '@/lib/price-service';
+import { getMostTraded } from '@/lib/db';
+import { pricedToken } from '@/lib/seo-types';
 import { timeAgo, formatNumber } from '@/lib/utils';
 
 export const revalidate = 12;
@@ -103,8 +105,8 @@ export default async function HomePage() {
     getNetworkSnapshot().catch(() => null),
     getIndexStats().catch(() => null),
     getLatestBlocks(6).then(b => [...b].sort((a, b) => b.number - a.number)).catch(() => []),
-    getTransactions().catch(() => []),
-    getTokens().then(tokens => getTokenPrices(tokens)).catch(() => []),
+    getTransactions(16).catch(() => []),
+    getMostTraded(10).then(rows => rows.length ? rows.map(pricedToken) : getTokens().then(getTokenPrices)).catch(() => []),
   ]);
 
   return (

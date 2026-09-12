@@ -1,4 +1,11 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
+
+// pg hands NUMERIC / BIGINT back as strings to preserve precision. Every numeric column
+// in this schema is a display value (prices, volumes, counts) that the pages format with
+// toFixed()/toLocaleString(), so parse them as numbers once here instead of at every
+// call site. Raw token supplies live in TEXT columns and are unaffected.
+types.setTypeParser(types.builtins.NUMERIC, value => (value === null ? null : Number(value)));
+types.setTypeParser(types.builtins.INT8, value => (value === null ? null : Number(value)));
 
 // ── Types matching db/schema.sql ──────────────────────────────
 

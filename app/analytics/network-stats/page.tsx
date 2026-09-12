@@ -4,6 +4,7 @@ import AnalyticsNav from '@/components/AnalyticsNav';
 import { getIndexStats } from '@/lib/blockscout';
 import { getLatestBlocks } from '@/lib/robinhood-rpc';
 import { getDailyStats } from '@/lib/db';
+import { getDailyActivity } from '@/lib/chain-stats';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,8 @@ export default async function NetworkStatsPage() {
   const [stats, recentBlocks, dailyStats] = await Promise.all([
     getIndexStats().catch(() => null),
     getLatestBlocks(20).catch(() => []),
-    getDailyStats(14).catch(() => []),
+    // Synced rows first; the stats service directly when the table is still empty.
+    getDailyStats(14).then(rows => rows.length ? rows : getDailyActivity(14)).catch(() => []),
   ]);
 
   let avgBlockTime = '—';
@@ -79,7 +81,7 @@ export default async function NetworkStatsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         <StatCard
           label="Latest Block"
-          value={stats ? stats.totalBlocks.toLocaleString() : '—'}
+          value={recentBlocks[0] ? recentBlocks[0].number.toLocaleString() : stats ? stats.totalBlocks.toLocaleString() : '—'}
           sub="block height"
         />
         <StatCard
@@ -152,7 +154,7 @@ export default async function NetworkStatsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr>
-                  {['Date', 'Transactions', 'Active Addresses', 'Token Transfers', 'Avg Gas (Gwei)'].map(h => (
+                  {['Date', 'Transactions', 'Active Addresses', 'ETH Transfers', 'Avg Gas (Gwei)'].map(h => (
                     <th key={h} style={{ padding: '0.75rem 1.5rem', textAlign: 'left', color: 'var(--muted)', fontWeight: 500, fontSize: '0.8rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -164,7 +166,7 @@ export default async function NetworkStatsPage() {
                     <td style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)' }}>{row.total_transactions?.toLocaleString() ?? '—'}</td>
                     <td style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)' }}>{row.active_addresses?.toLocaleString() ?? '—'}</td>
                     <td style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)' }}>{row.token_transfers?.toLocaleString() ?? '—'}</td>
-                    <td style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)' }}>{row.avg_gas_gwei?.toFixed(2) ?? '—'}</td>
+                    <td style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)' }}>{row.avg_gas_gwei != null ? Number(row.avg_gas_gwei).toFixed(3) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
