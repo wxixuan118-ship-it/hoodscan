@@ -13,10 +13,17 @@ const STATIC: MetadataRoute.Sitemap = [
   { url: `${BASE}/tokens/top-gainers`,  changeFrequency: 'hourly',  priority: 0.8 },
   { url: `${BASE}/tokens/most-traded`,  changeFrequency: 'hourly',  priority: 0.8 },
   { url: `${BASE}/tokens/most-held`,    changeFrequency: 'daily',   priority: 0.7 },
-  { url: `${BASE}/analytics/dex-activity`,                 changeFrequency: 'hourly',  priority: 0.7 },
+  { url: `${BASE}/analytics`,                changeFrequency: 'daily',   priority: 0.7 },
+  { url: `${BASE}/analytics/dex-activity`,   changeFrequency: 'hourly',  priority: 0.7 },
+  { url: `${BASE}/analytics/network-stats`,  changeFrequency: 'hourly',  priority: 0.7 },
+  { url: `${BASE}/analytics/gas-tracker`,    changeFrequency: 'always',  priority: 0.6 },
+  { url: `${BASE}/analytics/top-accounts`,   changeFrequency: 'hourly',  priority: 0.6 },
+  { url: `${BASE}/analytics/token`,          changeFrequency: 'hourly',  priority: 0.6 },
+  { url: `${BASE}/contracts`,           changeFrequency: 'hourly',  priority: 0.6 },
   { url: `${BASE}/blocks`,              changeFrequency: 'always',  priority: 0.6 },
   { url: `${BASE}/txs`,                 changeFrequency: 'always',  priority: 0.6 },
-  { url: `${BASE}/about`,              changeFrequency: 'monthly', priority: 0.3 },
+  { url: `${BASE}/wallet`,              changeFrequency: 'monthly', priority: 0.4 },
+  { url: `${BASE}/about`,               changeFrequency: 'monthly', priority: 0.3 },
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
