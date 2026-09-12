@@ -5,10 +5,10 @@ import { Pool } from 'pg';
 import { getTokenHolders, getTokenTransfers, getContractInfo, getContractSourceInfo, getAddressTransactions, getAddressTokenBalances } from '../lib/blockscout';
 import { analyzeTokenRisk } from '../lib/token-risk';
 import { pricedToken, isAddress, type TokenSnapshot, type AddressSnapshot } from '../lib/seo-types';
-import type { DbToken } from '../lib/db-client';
+import { poolConfig, type DbToken } from '../lib/db-client';
 import { SNAPSHOT_UPSERT } from '../lib/snapshot-store';
 
-const db = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2, connectionTimeoutMillis: 5000, statement_timeout: 10000 });
+const db = new Pool({ ...poolConfig(process.env.DATABASE_URL, 10000), max: 2, connectionTimeoutMillis: 5000 });
 const TOKEN_LIMIT = 300;
 const ADDRESS_LIMIT = 500;
 const TOKEN_BATCH = 20;

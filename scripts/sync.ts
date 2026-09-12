@@ -11,6 +11,7 @@
  */
 
 import { Pool } from 'pg';
+import { poolConfig } from '../lib/db-client';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
@@ -30,10 +31,7 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = new Pool({ ...poolConfig(DATABASE_URL, 60_000) });
 
 // Generic upsert: INSERT ... ON CONFLICT (conflictCol) DO UPDATE SET ...
 async function upsert(table: string, rows: Record<string, unknown>[], conflictCol: string): Promise<{ error?: { message: string } }> {

@@ -16,7 +16,11 @@ export const getTokenSnapshot = (address: string): Promise<Snapshot<TokenSnapsho
   isAddress(address) ? read('token', address.toLowerCase()) : Promise.resolve(null);
 export const getAddressSnapshot = (address: string): Promise<Snapshot<AddressSnapshot> | null> =>
   isAddress(address) ? read('address', address.toLowerCase()) : Promise.resolve(null);
-export const getNetworkSnapshot = (): Promise<Snapshot<{ gasPrice: string }> | null> => process.env.DATABASE_URL ? read('network', 'chain') : Promise.resolve(null);
+// Rendered in the root layout (TickerBar) on every page — a DB outage or a
+// missing seo_snapshots table must not 500 the whole site, so this one degrades to null.
+export const getNetworkSnapshot = (): Promise<Snapshot<{ gasPrice: string }> | null> => process.env.DATABASE_URL
+  ? read('network', 'chain').catch(err => { console.error('[seo] getNetworkSnapshot', err); return null; })
+  : Promise.resolve(null);
 
 export const getSeoSitemap = unstable_cache(async (kind: 'token' | 'address') => {
   const { rows } = await pool.query<{ address: string; content_updated_at: string }>(

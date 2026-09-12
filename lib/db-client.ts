@@ -75,17 +75,40 @@ declare global {
   var __hoodscanPool: Pool | undefined;
 }
 
+// Connection options shared by the app and the sync/snapshot scripts.
+// Two quirks of the provisioned DATABASE_URL (DigitalOcean PgBouncer):
+//  - `?sslmode=require` in the URL is parsed by pg into `ssl: {}`, which
+//    OVERRIDES the `ssl` option passed here and re-enables CA verification
+//    ("self-signed certificate in certificate chain"). Strip it and pass ssl
+//    explicitly so rejectUnauthorized:false actually applies.
+//  - `statement_timeout` is sent as a startup parameter, which PgBouncer
+//    rejects ("unsupported startup parameter"). Use pg's client-side
+//    `query_timeout` instead.
+export function poolConfig(url: string | undefined, queryTimeoutMs: number) {
+  let connectionString = url;
+  let ssl: false | { rejectUnauthorized: boolean } = { rejectUnauthorized: false };
+  if (url) {
+    try {
+      const u = new URL(url);
+      if (u.searchParams.get('sslmode') === 'disable') ssl = false;
+      for (const k of ['sslmode', 'ssl', 'pgbouncer']) u.searchParams.delete(k);
+      connectionString = u.toString();
+    } catch {
+      // Not a URL (e.g. test fixtures) — pass through untouched.
+    }
+  }
+  return { connectionString, ssl, query_timeout: queryTimeoutMs };
+}
+
 function createPool(): Pool {
   // DATABASE_URL may be unset at build time (e.g. `next build` in Docker,
   // which prerenders static pages without runtime env vars). Don't throw
   // here — let queries fail individually so callers can degrade gracefully.
   return new Pool({
-    connectionString: process.env.DATABASE_URL,
+    ...poolConfig(process.env.DATABASE_URL, 5000),
     max: 5,
     connectionTimeoutMillis: 3000,
-    statement_timeout: 5000,
     idleTimeoutMillis: 30000,
-    ssl: { rejectUnauthorized: false },
   });
 }
 
