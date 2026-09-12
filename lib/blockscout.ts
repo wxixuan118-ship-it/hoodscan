@@ -135,11 +135,12 @@ export async function getTransactions(): Promise<IndexedTransaction[]> {
   }
 }
 
-export async function getAddressTransactions(address: string): Promise<IndexedTransaction[]> {
+export async function getAddressTransactions(address: string, strict = false): Promise<IndexedTransaction[]> {
   try {
     const data = await api<{ items: ApiTransaction[] }>(`/addresses/${encodeURIComponent(address)}/transactions`);
     return data.items.map(mapTransaction);
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 }
@@ -158,7 +159,7 @@ export async function getToken(address: string): Promise<IndexedToken | null> {
   catch { return null; }
 }
 
-export async function getTokenHolders(address: string, token: IndexedToken): Promise<TokenHolder[]> {
+export async function getTokenHolders(address: string, token: IndexedToken, strict = false): Promise<TokenHolder[]> {
   try {
     const data = await api<{ items: Array<{ address: AddressRef; value: string }> }>(`/tokens/${encodeURIComponent(address)}/holders`);
     const supply = BigInt(token.totalSupply || '0');
@@ -167,36 +168,39 @@ export async function getTokenHolders(address: string, token: IndexedToken): Pro
       balance: formatTokenAmount(item.value, token.decimals),
       percentage: supply > BigInt(0) ? Number((BigInt(item.value) * BigInt(10000)) / supply) / 100 : 0,
     }));
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 }
 
-export async function getTokenTransfers(address: string, token: IndexedToken): Promise<TokenTransfer[]> {
+export async function getTokenTransfers(address: string, token: IndexedToken, strict = false): Promise<TokenTransfer[]> {
   try {
     const data = await api<{ items: Array<{ transaction_hash: string; timestamp: string; from: AddressRef; to: AddressRef; total: { value: string; decimals: string }; method: string | null }> }>(`/tokens/${encodeURIComponent(address)}/transfers`);
     return data.items.map(item => ({
       hash: item.transaction_hash, timestamp: Math.floor(new Date(item.timestamp).getTime() / 1000),
       from: item.from.hash, to: item.to.hash, value: formatTokenAmount(item.total.value, Number(item.total.decimals || token.decimals)), method: item.method,
     }));
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 }
 
-export async function getAddressTokenBalances(address: string): Promise<TokenBalance[]> {
+export async function getAddressTokenBalances(address: string, strict = false): Promise<TokenBalance[]> {
   try {
     const data = await api<Array<{ token: ApiToken; value: string }>>(`/addresses/${encodeURIComponent(address)}/token-balances`);
     return data.filter(item => item.token.type === 'ERC-20').map(item => {
       const token = mapToken(item.token);
       return { token, balance: formatTokenAmount(item.value, token.decimals) };
     });
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return [];
   }
 }
 
-export async function getContractInfo(address: string) {
+export async function getContractInfo(address: string, strict = false) {
   try {
     const data = await api<AddressInfo>(`/addresses/${encodeURIComponent(address)}`);
     return {
@@ -208,12 +212,13 @@ export async function getContractInfo(address: string) {
       isScam: data.is_scam,
       reputation: data.reputation,
     };
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return { verified: false, creator: null, creationTx: null, proxyType: null, implementations: [], isScam: false, reputation: 'unknown' };
   }
 }
 
-export async function getContractSourceInfo(address: string): Promise<ContractSourceInfo | null> {
+export async function getContractSourceInfo(address: string, strict = false): Promise<ContractSourceInfo | null> {
   try {
     const data = await api<SmartContractInfo>(`/smart-contracts/${encodeURIComponent(address)}`);
     return {
@@ -223,7 +228,8 @@ export async function getContractSourceInfo(address: string): Promise<ContractSo
       optimizationEnabled: data.optimization_enabled,
       verifiedTwin: data.verified_twin_address_hash,
     };
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     return null;
   }
 }

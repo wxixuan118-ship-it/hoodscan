@@ -1,19 +1,24 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { shortenHash, timeAgo, formatDate } from '@/lib/utils';
-import { getNativeBalance } from '@/lib/robinhood-rpc';
-import { getAddressTokenBalances, getAddressTransactions } from '@/lib/blockscout';
+import { notFound } from 'next/navigation';
+import { getAddressSnapshot } from '@/lib/seo';
+import { isAddress } from '@/lib/seo-types';
+import SnapshotNotice from '@/components/SnapshotNotice';
 
 type Props = { params: Promise<{ address: string }> };
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
+export async function generateStaticParams() { return []; }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { address } = await params;
+  const snapshot = await getAddressSnapshot(address);
   return {
+    robots: { index: snapshot?.indexable ?? false, follow: true },
     title: `${address.slice(0, 10)}… Wallet | Robinhood Chain Explorer`,
     description: `Wallet balance, token holdings and transaction history for address ${address} on Robinhood Chain (Chain ID 4663).`,
-    alternates: { canonical: `https://www.hood-chain.com/address/${address}` },
+    alternates: { canonical: `https://www.hood-chain.com/address/${address.toLowerCase()}` },
     openGraph: {
       title: `Wallet ${address.slice(0, 10)}… | HoodScan`,
       description: `On-chain activity for ${address} on Robinhood Chain.`,
@@ -31,22 +36,28 @@ const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
 export default async function AddressPage({ params }: Props) {
   const { address } = await params;
 
-  const [ethBalance, displayTxs, tokenBalances] = await Promise.all([
-    getNativeBalance(address), getAddressTransactions(address), getAddressTokenBalances(address),
-  ]);
+  if (!isAddress(address)) notFound();
+  const snapshot = await getAddressSnapshot(address);
+  if (!snapshot) return <div className="token-detail-page">
+    <h1>Address {address}</h1>
+    <p>This address does not yet have a published activity snapshot.</p>
+    <a href={`https://robinhoodchain.blockscout.com/address/${address}`} rel="noreferrer">View live balance and transactions on Blockscout ↗</a>
+  </div>;
+  const { ethBalance, displayTxs, tokenBalances } = snapshot.payload;
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Thing',
     name: `Robinhood Chain Address ${address}`,
     identifier: address,
-    url: `https://www.hood-chain.com/address/${address}`,
+    url: `https://www.hood-chain.com/address/${address.toLowerCase()}`,
   };
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1.5rem' }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
+      <SnapshotNotice fetchedAt={snapshot.fetched_at} />
       {/* Address Header */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
@@ -70,7 +81,7 @@ export default async function AddressPage({ params }: Props) {
           <h2 style={{ fontWeight: 700, fontSize: '0.95rem', margin: '0 0 1rem' }}>Overview</h2>
           <dl style={{ margin: 0 }}>
             <Row label="ETH Balance" value={<strong>{ethBalance} ETH</strong>} />
-            <Row label="Transaction Count" value={displayTxs.length} />
+            <Row label="Transactions shown" value={displayTxs.length} />
             <Row label="Oldest shown" value={displayTxs.length ? formatDate(displayTxs[displayTxs.length - 1].timestamp) : 'No indexed transactions'} />
             <Row label="Last Seen" value={displayTxs.length ? timeAgo(displayTxs[0].timestamp) : '—'} />
           </dl>

@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
-import { getTokenByAddress } from '@/lib/db';
+import { getTokenSnapshot } from '@/lib/seo';
+export const revalidate = 3600;
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -20,15 +21,15 @@ function fmtPct(v: number | null): string {
 export default async function OgImage({ params }: Props) {
   const { address } = await params;
 
-  const token = await getTokenByAddress(address);
+  const token = (await getTokenSnapshot(address))?.payload.token;
 
   const name    = token?.name    ?? 'Unknown Token';
   const symbol  = token?.symbol  ?? '???';
-  const price   = fmtPrice(token?.price_usd ?? null);
-  const change  = fmtPct(token?.price_change_24h ?? null);
-  const holders = token?.holders_count?.toLocaleString() ?? '—';
-  const isUp    = (token?.price_change_24h ?? 0) >= 0;
-  const changeColor = token?.price_change_24h === null ? '#888' : isUp ? '#22c55e' : '#ef4444';
+  const price   = fmtPrice(token?.price ?? null);
+  const change  = fmtPct(token?.change24h ?? null);
+  const holders = token?.holders?.toLocaleString() ?? '—';
+  const isUp    = (token?.change24h ?? 0) >= 0;
+  const changeColor = token?.change24h === null ? '#888' : isUp ? '#22c55e' : '#ef4444';
 
   const shortAddr = `${address.slice(0, 8)}…${address.slice(-6)}`;
 
@@ -55,14 +56,10 @@ export default async function OgImage({ params }: Props) {
 
         {/* Token identity */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 40 }}>
-          {token?.icon_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={token.icon_url} width={80} height={80} style={{ borderRadius: '50%' }} alt={symbol} />
-          ) : (
             <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e1e30', border: '2px solid #2a2a40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: '#635bff' }}>
               {symbol.slice(0, 2)}
             </div>
-          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
               <span style={{ fontSize: 48, fontWeight: 800, color: '#fff', letterSpacing: '-1px', lineHeight: 1 }}>{name}</span>
@@ -90,10 +87,10 @@ export default async function OgImage({ params }: Props) {
           <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '24px 28px', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ color: '#888', fontSize: 14, fontWeight: 500, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>24h Volume</div>
             <div style={{ color: '#fff', fontSize: 34, fontWeight: 700, letterSpacing: '-0.5px' }}>
-              {token?.volume_24h != null
-                ? token.volume_24h >= 1_000_000 ? `$${(token.volume_24h / 1_000_000).toFixed(1)}M`
-                : token.volume_24h >= 1000 ? `$${(token.volume_24h / 1000).toFixed(0)}K`
-                : `$${token.volume_24h.toFixed(0)}`
+              {token?.volume24h != null
+                ? token.volume24h >= 1_000_000 ? `$${(token.volume24h / 1_000_000).toFixed(1)}M`
+                : token.volume24h >= 1000 ? `$${(token.volume24h / 1000).toFixed(0)}K`
+                : `$${token.volume24h.toFixed(0)}`
                 : '—'}
             </div>
             <div style={{ color: '#555', fontSize: 16, marginTop: 6 }}>DEX volume</div>

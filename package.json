@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync": "npx tsx scripts/sync.ts"
+    "sync": "npx tsx scripts/sync.ts",
+    "snapshot": "tsx scripts/snapshot.ts",
+    "test:seo": "node --import tsx --test tests/seo.test.ts",
+    "test:seo:smoke": "node tests/seo-smoke.mjs"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
@@ -17,6 +20,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.11.10",

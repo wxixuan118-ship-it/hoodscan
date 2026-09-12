@@ -2,15 +2,20 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatNumber, shortenAddress, shortenHash, timeAgo } from '@/lib/utils';
-import { getToken, getTokenTransfers } from '@/lib/blockscout';
+import { getTokenSnapshot, SITE_URL } from '@/lib/seo';
+import SnapshotNotice from '@/components/SnapshotNotice';
 
 type Props = { params: Promise<{ address: string }> };
-export const revalidate = 30;
+export const revalidate = 3600;
+export async function generateStaticParams() { return []; }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { address } = await params;
-  const token = await getToken(address);
+  const snapshot = await getTokenSnapshot(address);
+  const token = snapshot?.payload.token;
   return {
+    robots: { index: false, follow: true },
+    alternates: { canonical: `${SITE_URL}/token/${address.toLowerCase()}/transfers` },
     title: token ? `${token.name} (${token.symbol}) Transfers on Robinhood Chain | HoodScan` : 'Robinhood Chain Token Transfers | HoodScan',
     description: token ? `Track latest ${token.symbol} token transfers on Robinhood Chain, including sender, receiver, amount and transaction time.` : `View Robinhood Chain token transfers for ${address}.`,
   };
@@ -18,9 +23,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function TokenTransfersPage({ params }: Props) {
   const { address } = await params;
-  const token = await getToken(address);
-  if (!token) notFound();
-  const transfers = await getTokenTransfers(address, token);
+  const snapshot = await getTokenSnapshot(address);
+  const token = snapshot?.payload.token;
+  if (!token || !snapshot) notFound();
+  const transfers = snapshot.payload.transfers;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Dataset',
@@ -31,7 +37,8 @@ export default async function TokenTransfersPage({ params }: Props) {
 
   return (
     <div className="token-detail-page">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      <SnapshotNotice fetchedAt={snapshot.fetched_at} />
       <header className="token-subpage-header">
         <div>
           <span>Robinhood Chain token transfers</span>

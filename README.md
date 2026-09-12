@@ -77,9 +77,30 @@ npm start
 ## SEO
 
 - Dynamic `<title>` and `<meta description>` on every page
-- `/sitemap.xml` auto-generated from all token and tx pages
-- `/robots.txt` allows all crawlers
+- `/sitemap.xml` lists only successfully snapshotted, indexable token/address pages with a trustworthy `lastmod`
+- `/robots.txt` disallows per-block/tx pages (crawl-cost protection); `proxy.ts` also returns 403 to known crawler UAs on those routes
 - Target keywords: `Robinhood Chain Explorer`, `Robinhood Chain Tokens`, `Robinhood Chain Wallet Tracker`
+
+### Bounded pSEO snapshots (token / address pages)
+
+`/token/[address]` and `/address/[address]` (plus holders/transfers sub-pages and the token OG image) render **only from PostgreSQL snapshots** — no upstream Blockscout/RPC calls happen on the request path. Pages use 1-hour ISR.
+
+- `db/migrations/001-seo-snapshots.sql` — `seo_snapshots` table (run once with `psql -v ON_ERROR_STOP=1 -f`)
+- `scripts/snapshot.ts` / `npm run snapshot` — hourly job (`.github/workflows/snapshot.yml`) that refreshes up to 300 tokens + 500 related addresses in small batches, with an advisory lock and a soft 10-minute budget
+- `proxy.ts` — validates addresses, 308-redirects to lowercase canonical, and returns a lightweight `noindex`/`no-store` response for unpublished keys so misses never create ISR entries
+- `lib/seo.ts`, `lib/seo-registry.ts`, `lib/snapshot-store.ts` — snapshot read/write helpers and the published-route directory
+
+See [docs/pseo-plan.md](docs/pseo-plan.md) for the rollout order, budgets, and Cloudflare notes.
+
+### Tests
+
+```bash
+npm run test:seo         # unit tests on an isolated PGlite database
+npm run build
+npm run test:seo:smoke   # production server against DB fixtures; asserts ISR HIT, zero upstream calls, noindex, sitemap membership (uses port 34817)
+```
+
+The smoke test writes to the local `.next` cache — always rebuild before deploying.
 
 ## Project Structure
 

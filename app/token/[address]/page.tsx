@@ -2,17 +2,22 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatNumber, shortenAddress, shortenHash, timeAgo } from '@/lib/utils';
-import { formatTokenAmount, getContractInfo, getContractSourceInfo, getToken, getTokenHolders, getTokenTransfers } from '@/lib/blockscout';
-import { getTokenPrices } from '@/lib/price-service';
-import { analyzeTokenRisk, type TokenRiskReport } from '@/lib/token-risk';
+import { formatTokenAmount } from '@/lib/blockscout';
+import { getTokenSnapshot, SITE_URL } from '@/lib/seo';
+import SnapshotNotice from '@/components/SnapshotNotice';
+import { type TokenRiskReport } from '@/lib/token-risk';
 
 type Props = { params: Promise<{ address: string }> };
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
+export async function generateStaticParams() { return []; }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { address } = await params;
-  const token = await getToken(address);
+  const snapshot = await getTokenSnapshot(address);
+  const token = snapshot?.payload.token;
   return {
+    alternates: { canonical: `${SITE_URL}/token/${address.toLowerCase()}` },
+    robots: { index: snapshot?.indexable ?? false, follow: true },
     title: token
       ? `${token.name} (${token.symbol}) on Robinhood Chain`
       : 'Token Not Found | HoodScan',
@@ -74,38 +79,23 @@ function RiskPanel({ risk }: { risk: TokenRiskReport }) {
 
 export default async function TokenPage({ params }: Props) {
   const { address } = await params;
-  const indexedToken = await getToken(address);
-  if (!indexedToken) notFound();
-  const [token] = await getTokenPrices([indexedToken]);
-  if (!token) notFound();
-  const [holders, transfers, contract, source] = await Promise.all([
-    getTokenHolders(address, token),
-    getTokenTransfers(address, token),
-    getContractInfo(address),
-    getContractSourceInfo(address),
-  ]);
-  const risk = await analyzeTokenRisk({ token, holders, contract, source });
+  const snapshot = await getTokenSnapshot(address);
+  if (!snapshot) notFound();
+  const { token, holders, transfers, contract, risk } = snapshot.payload;
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'FinancialProduct',
-    name: `${token.name} (${token.symbol})`,
-    description: `${token.name} is an ERC-20 token on Robinhood Chain with ${token.holders.toLocaleString()} holders${token.price ? `, currently priced at $${token.price.toFixed(6)}` : ''}.`,
-    url: `/token/${token.address}`,
-    identifier: token.address,
-    breadcrumb: {
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'HoodScan', item: 'https://www.hood-chain.com' },
-        { '@type': 'ListItem', position: 2, name: 'Tokens', item: 'https://www.hood-chain.com/tokens' },
-        { '@type': 'ListItem', position: 3, name: token.name },
-      ],
-    },
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'HoodScan', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Tokens', item: `${SITE_URL}/tokens` },
+      { '@type': 'ListItem', position: 3, name: token.name, item: `${SITE_URL}/token/${token.address}` },
+    ],
   };
 
   return (
     <div className="token-detail-page">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
       {/* Breadcrumb */}
       <nav style={{ marginBottom: '1.25rem', fontSize: '0.78rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
@@ -130,6 +120,9 @@ export default async function TokenPage({ params }: Props) {
           </div>
         </div>
       </header>
+
+      <SnapshotNotice fetchedAt={snapshot.fetched_at} />
+      <p>{token.name} ({token.symbol}) is a {token.type} token on Robinhood Chain with {token.holders.toLocaleString()} holders. Recorded liquidity: {money(token.liquidity)}. Contract verification: {contract.verified ? 'verified' : 'not verified'}.</p>
 
       {/* Price chart — GeckoTerminal embed */}
       {token.poolAddress && (
@@ -207,7 +200,7 @@ export default async function TokenPage({ params }: Props) {
       </div>
 
       {/* Risk panel */}
-      <RiskPanel risk={risk} />
+      {risk && <RiskPanel risk={risk} />}
 
       {/* Top holders */}
       <section className="token-data-panel">

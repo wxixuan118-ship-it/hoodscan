@@ -81,6 +81,10 @@ function createPool(): Pool {
   // here — let queries fail individually so callers can degrade gracefully.
   return new Pool({
     connectionString: process.env.DATABASE_URL,
+    max: 5,
+    connectionTimeoutMillis: 3000,
+    statement_timeout: 5000,
+    idleTimeoutMillis: 30000,
     ssl: { rejectUnauthorized: false },
   });
 }

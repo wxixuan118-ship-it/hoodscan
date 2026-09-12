@@ -11,6 +11,7 @@ type Props = { params: Promise<{ address: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { address } = await params;
   return {
+    robots: { index: false, follow: true },
     title: `Liquidity Pools for ${address.slice(0, 8)}… on Robinhood Chain`,
     description: `All DEX liquidity pools for token ${address} on Robinhood Chain. Compare pool liquidity, 24h volume, and price across DEXes.`,
     alternates: { canonical: `https://www.hood-chain.com/token/${address}/pools` },
