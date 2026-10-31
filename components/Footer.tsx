@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import HomepageFooterBadge from '@/components/HomepageFooterBadge';
 
 export default function Footer() {
   return (
@@ -30,6 +31,8 @@ export default function Footer() {
         <p style={{ color: 'var(--muted)', fontSize: '0.8rem', margin: 0 }}>
           © {new Date().getFullYear()} HoodScan. Data provided for informational purposes only.
         </p>
+
+        <HomepageFooterBadge />
       </div>
     </footer>
   );
